@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -18,8 +22,42 @@
         "name": "next"
       }
     ],
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": [
+        "./*"
+      ],
+      // 🏛 Database / Config files
+      "@lib/*": [
+        "./lib/*"
+      ],
+      "@config/*": [
+        "./config/*"
+      ],
+      // 🗄 Mongoose Models
+      "@models/*": [
+        "./models/*"
+      ],
+      // 🎮 API Route Controllers
+      "@controllers/*": [
+        "./controllers/*"
+      ],
+      // 🔧 Helper Utilities
+      "@utils/*": [
+        "./utils/*"
+      ],
+      // 🔥 Business Logic / Services
+      "@services/*": [
+        "./services/*"
+      ],
+      // 📌 Custom React Hooks
+      "@hooks/*": [
+        "./hooks/*"
+      ],
+      // 🧩 Type Files (.d.ts)
+      "@types/*": [
+        "./types/*"
+      ]
     }
   },
   "include": [
@@ -27,8 +65,10 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts",
-    "**/*.mts"
+    "**/*.mts",
+    ".next/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }
