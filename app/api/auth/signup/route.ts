@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimiter } from "@/middlewares/rate-limiter";
+import { rateLimiter } from "@/lib/helpers/rate-limiter";
 import { asynchandler } from "@/lib/api/asyncHandler";
 import { signUpUser } from "@/controllers/auth/signup.controller";
 import { db } from "@/lib/db-config/db";

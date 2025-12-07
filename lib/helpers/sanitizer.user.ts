@@ -9,6 +9,7 @@ export function sanitizeUser(user: IInvestorDocument) {
     phone: user.phone,
     companyName: user.companyName,
     verified: user.verified,
-    avatar: user.avatar || null,
+    avatar: user?.avatar?.url || null,
+  
   };
 }

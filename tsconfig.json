@@ -48,7 +48,7 @@
       ],
       // 🔥 Business Logic / Services
       "@services/*": [
-        "./services/*"
+        "lib/services/*"
       ],
       // 📌 Custom React Hooks
       "@hooks/*": [
@@ -57,6 +57,9 @@
       // 🧩 Type Files (.d.ts)
       "@types/*": [
         "./types/*"
+      ],
+      "@store/*": [
+        "./store/*"
       ]
     }
   },

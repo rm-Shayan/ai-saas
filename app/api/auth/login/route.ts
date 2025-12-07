@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimiter } from "@/middlewares/rate-limiter";
+import { rateLimiter } from "@/lib/helpers/rate-limiter";
 import { asynchandler } from "@/lib/api/asyncHandler";
 import { loginUser } from "@/controllers/auth/login.controller";
 import { db } from "@/lib/db-config/db";
@@ -19,7 +19,7 @@ export const POST = async (req: NextRequest) => {
     // Rate limiter (same style as signup)
     const options = {
       keyPrefix: "login", // important
-      limit: 3,
+      limit: 13,
       ttl: 300, // 5 minutes
     };
 

@@ -1,5 +1,3 @@
-// controllers/auth/forgotPassword.controller.ts
-'use server';
 
 import { NextRequest } from "next/server";
 import { ApiError } from "@/lib/api/ApiError";
@@ -31,7 +29,9 @@ export const forgotPassword = async (req: NextRequest) => {
   });
 
   // Build frontend reset URL
-  const resetUrl = `${process.env.PROD_URL||process.env.LOCAL_URL}/reset-password?token=${resetToken}`;
+  const FRONTEND_URL = process.env.PROD_URL?.trim();
+
+const resetUrl = `${FRONTEND_URL}/reset-password?token=${resetToken}`;
 
   // Send email
   try {

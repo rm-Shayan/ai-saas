@@ -5,7 +5,7 @@ import { NextRequest } from "next/server";
 import { redis } from "@/lib/db-config/db"; // Redis client
 import { generateOTP } from "@/lib/helpers/otp";
 import { sendMail } from "@/lib/helpers/email";
-import { sanitizeUser } from "@/lib/helpers/sanitizer.user";
+
 // ---------------- SIGNUP ----------------
 export const signUpUser = async (req: NextRequest) => {
   const body = await req.json();
@@ -46,6 +46,7 @@ const emailPromise = sendMail({
 
 const [investor] = await Promise.all([investorPromise, emailPromise]);
 
-return new ApiResponse(201, sanitizeUser(investor), "Investor created, OTP sent to email");
+return new ApiResponse(201, { email }, "Investor created, OTP sent to email");
+
 
 };

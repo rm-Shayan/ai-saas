@@ -2,7 +2,7 @@
 // app/api/auth/reset-otp/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { asynchandler } from "@/lib/api/asyncHandler";
-import { rateLimiter } from "@/middlewares/rate-limiter";
+import { rateLimiter } from "@/lib/helpers/rate-limiter";
 import { resetOTP } from "@/controllers/auth/regenerate-otp.controller";
 import { db } from "@/lib/db-config/db";
 

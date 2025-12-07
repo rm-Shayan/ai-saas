@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyOTP } from "@/controllers/auth/verify-otp.controller";
 import { asynchandler } from "@/lib/api/asyncHandler";
-import { rateLimiter } from "@/middlewares/rate-limiter";
+import { rateLimiter } from "@/lib/helpers/rate-limiter";
 import { db, redis } from "@/lib/db-config/db";
 
 // Wrap controller with async handler

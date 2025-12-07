@@ -1,6 +1,6 @@
 // app/api/auth/forgot-password/route.ts
 import { NextRequest } from "next/server";
-import { rateLimiter } from "@/middlewares/rate-limiter";
+import { rateLimiter } from "@/lib/helpers/rate-limiter";
 import { asynchandler } from "@/lib/api/asyncHandler";
 import { db, redis } from "@/lib/db-config/db";
 import { forgotPassword } from "@/controllers/auth/forgotPassword.controller";

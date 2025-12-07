@@ -1,17 +1,19 @@
+import Navbar from "@/components/navbar";
+import Hero from "@/components/hero";
+import Features from "@/components/features";
+import HowItWorks from "@/components/how-it-works";
+import Testimonials from "@/components/testimonials";
+import Footer from "@/components/footer";
 
-import { redis,db } from "@/lib/db-config/db";
-
-export default async function Home() {
-const res1=redis;
-const res2=db;
-
-console.log("db",res2)
-console.log("redis",res1)
-
-console.log("3kdnd")
+export default function HomePage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-    <h1>shayan</h1>
-    </div>
+    <>
+      <Navbar />
+      <Hero />
+      <Features />
+      <HowItWorks />
+      <Testimonials />
+      <Footer />
+    </>
   );
 }

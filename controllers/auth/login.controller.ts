@@ -18,6 +18,7 @@ export const loginUser = async (req: NextRequest) => {
   }
 
   const isMatch = await investor.comparePassword(password);
+  console.log(isMatch)
   if (!isMatch) {
     throw new ApiError(401, "Invalid credentials");
   }
@@ -49,7 +50,7 @@ export const loginUser = async (req: NextRequest) => {
     httpOnly: true,
     secure: isProd,
     sameSite,
-    path: "/api/auth/refresh",
+    path: "/",
     maxAge: 7 * 24 * 60 * 60,
   });
 
