@@ -18,7 +18,7 @@ export const GET = async (req: NextRequest) => {
     const options = {
       keyPrefix: "getUser",
       limit: 5,    // max 5 requests
-      ttl: 120,    // 5 minutes
+      ttl: 60,    // 5 minutes
     };
 
     const { allowed, remaining, reset } = await rateLimiter(ip, options);

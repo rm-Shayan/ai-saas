@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db-config/db";
 import { rateLimiter } from "@/lib/helpers/rate-limiter";
 import { asynchandler } from "@/lib/api/asyncHandler";
-import { getChat } from "@/controllers/chat/getChat.controller";
+import { createNewChat } from "@/controllers/chat/newChat.controller";
 
 // Wrap controller with asyncHandler
-const handler = asynchandler(getChat);
+const handler = asynchandler(createNewChat);
 
-export const GET = async (req: NextRequest) => {
+export const POST = async (req: NextRequest) => {
   try {
     // 1️⃣ Ensure DB is connected
     await db;
@@ -19,7 +19,7 @@ export const GET = async (req: NextRequest) => {
     // 3️⃣ Rate limiter config: max 5 requests per minute
     const options = {
       keyPrefix: "get-Chat",
-      limit: 5,
+      limit: 4,
       ttl: 60, // 1 minute in seconds
     };
 

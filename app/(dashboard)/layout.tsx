@@ -1,10 +1,9 @@
-import type { Metadata } from "next";
+"use client";
+
 import { Geist, Geist_Mono } from "next/font/google";
-import "../globals.css";
-import { createMetadata } from "@/Utils/generatemetadata";
 import { Providers } from "@/components/provider";
 import { Toaster } from "react-hot-toast";
-import AuthRoute from "@/components/Route/AuthRoute";
+import PrivateRoute from "@/components/Route/PrivateRoute";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,21 +15,13 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// Optionally, define dynamic metadata for all auth pages
-export const generateMetadata = (): Metadata => {
-  return createMetadata({
-    title: "Authentication | InvestoCrafy",
-    description:
-      "Login or Signup to access AI-powered investment insights, startup analysis, and financial recommendations on InvestoCrafy.",
-    url: "https://www.investocrafy.com/auth",
-  });
-};
+interface ChatLayoutProps {
+  children: React.ReactNode;
+}
 
-export default function AuthLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
+export default function ChatLayout({ children }: ChatLayoutProps) {
   return (
-    <html lang="en">
+   <html lang="en">
       <head>
         {/* Structured Data JSON-LD */}
         <script
@@ -57,9 +48,9 @@ export default function AuthLayout({
       >
         <Providers>
           <Toaster position="top-right" />
-          <AuthRoute> 
+          <PrivateRoute> 
             {children}
-            </AuthRoute>
+            </PrivateRoute>
         </Providers>
       </body>
     </html>

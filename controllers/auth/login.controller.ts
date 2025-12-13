@@ -28,8 +28,7 @@ export const loginUser = async (req: NextRequest) => {
   investor.refreshToken = refreshToken;
   await investor.save();
 
-  const isProd = process.env.NODE_ENV === "production";
-  const sameSite = isProd ? "none" : "lax";
+
 
   // Build NextResponse and wrap ApiResponse
   const response = NextResponse.json(
@@ -37,19 +36,18 @@ export const loginUser = async (req: NextRequest) => {
   );
 
   // Set Access Token cookie
-  response.cookies.set("accessToken", accessToken, {
+response.cookies.set("accessToken", accessToken, {
     httpOnly: true,
-    secure: isProd,
-    sameSite,
+    secure: process.env.NODE_ENV === "production",
+     sameSite: process.env.NODE_ENV === "production" ?"none":"lax",
     path: "/",
     maxAge: 15 * 60,
   });
 
-  // Set Refresh Token cookie
   response.cookies.set("refreshToken", refreshToken, {
     httpOnly: true,
-    secure: isProd,
-    sameSite,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ?"none":"lax",
     path: "/",
     maxAge: 7 * 24 * 60 * 60,
   });

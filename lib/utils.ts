@@ -27,18 +27,24 @@ export function safeJsonParse<T>(raw: unknown): T | null {
 }
 
 
-export function safeParseRedisChat(data: string | null): RedisChatObj | null {
-  if (!data) return null;
-
+// 🔹 Fully safe Redis JSON parse
+export function safeParseRedisChat(raw: string | null): RedisChatObj | null {
+  if (!raw || raw.trim() === "") return null; // empty or null
   try {
-    const parsed = JSON.parse(data);
-    // minimal check
-    if (parsed.chatId && Array.isArray(parsed.messages)) {
-      return parsed;
+    const parsed = JSON.parse(raw);
+    // minimal validation
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      parsed.chatId &&
+      Array.isArray(parsed.messages)
+    ) {
+      return parsed as RedisChatObj;
     }
+    console.warn("⚠️ Redis data invalid, ignoring:", parsed);
     return null;
   } catch (err) {
-    console.error("Redis parse failed:", err);
+    console.error("❌ Redis parse failed, ignoring value:", err, raw);
     return null;
   }
 }

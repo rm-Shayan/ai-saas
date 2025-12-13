@@ -1,129 +1,104 @@
-// import { NextRequest } from "next/server";
-// import { ApiError } from "@/lib/api/ApiError";
-// import { ApiResponse } from "@/lib/api/ApiResponse";
-// import { redis } from "@/lib/db-config/db";
-// import { History } from "@/models/history.model";
+import { NextRequest } from "next/server";
+import { ApiError } from "@/lib/api/ApiError";
+import { ApiResponse } from "@/lib/api/ApiResponse";
+import { redis } from "@/lib/db-config/db";
+import { History } from "@/models/history.model";
+import { Types } from "mongoose";
 
-// export const GetHistory = async (req: NextRequest) => {
-//   try {
-//     const investorId = req.headers.get("x-temp-user-id");
-//     if (!investorId) throw new ApiError(400, "Investor ID missing");
+export interface RedisHistoryObj {
+  _id: string;
+  chats: string[];
+  investorId: string;
+}
 
-//     const redisKey = `history:${investorId}`;
+function safeJsonParse<T>(str: string | null): T | null {
+  if (!str) return null;
+  try {
+    return JSON.parse(str) as T;
+  } catch {
+    return null;
+  }
+}
 
-//     // 1️⃣ Get from Redis
-//     let historyDoc: any = null;
-//     const cached = await redis.get(redisKey);
+export const GetHistory = async (req: NextRequest) => {
+  try {
+    const investorId = req.headers.get("x-temp-user-id");
+    if (!investorId) throw new ApiError(400, "Investor ID missing");
 
-//     if (cached) {
-//       historyDoc = JSON.parse(cached) as any;
-//     } else {
-//       // 2️⃣ Redis miss → Fetch from DB
-//       const dbHistory = await History.findOne({ investorId });
+    const url = new URL(req.url);
+    const sinceParam = url.searchParams.get("since"); // ISO string or timestamp
+    const untilParam = url.searchParams.get("until");
+    const since = sinceParam ? new Date(sinceParam) : null;
+    const until = untilParam ? new Date(untilParam) : null;
 
-//       if (!dbHistory) {
-//         // Create new history if missing
-//         const newHistory = await History.create({
-//           investorId,
-//           chats: []
-//         });
+    const redisKey = `history:${investorId}`;
+    let historyDoc: RedisHistoryObj | null = null;
 
-//         historyDoc = {
-//           _id: newHistory._id.toString(),
-//           investorId,
-//           title: newHistory.title,
-//           chats: []
-//         };
+    // ---------------------------------
+    // 1️⃣ Redis GET with SAFE PARSE
+    // ---------------------------------
+    const cached = await redis.get(redisKey);
+    if (cached) {
+        if(typeof cached =="string" && cached!==""){
+      const parsed = safeJsonParse<RedisHistoryObj>(cached);
+      if (parsed && parsed._id && Array.isArray(parsed.chats)) {
+        historyDoc = parsed;
+      }
+    }
+    }
+    // ---------------------------------
+    // 2️⃣ Redis MISS → DB
+    // ---------------------------------
+    if (!historyDoc) {
+      const dbHistory = await History.findOne({ investorId });
 
-//         await redis.set(redisKey, JSON.stringify(historyDoc));
-//       } else {
-//         historyDoc = {
-//           _id: dbHistory._id.toString(),
-//           investorId: dbHistory.investorId.toString(),
-//           title: dbHistory.title,
-//           chats: dbHistory.chats.map((c) => c.toString())
-//         };
+      if (!dbHistory) {
+        const newHistory = await History.create({ investorId, chats: [] });
+        historyDoc = { _id: newHistory._id.toString(), investorId, chats: [] };
+      } else {
+        historyDoc = {
+          _id: dbHistory._id.toString(),
+          investorId,
+         chats: Array.isArray(dbHistory.chats) 
+  ? dbHistory.chats.map((c: any) => c.toString()) 
+  : []
+        };
+      }
 
-//         await redis.set(redisKey, JSON.stringify(historyDoc));
-//       }
-//     }
+      try {
+        await redis.set(redisKey, JSON.stringify(historyDoc));
+        await redis.expire(redisKey, 86400); // 24h TTL
+      } catch (err) {
+        console.error("❌ Failed to set Redis key:", err);
+      }
+    }
 
-//     // 3️⃣ If empty chats → return empty
-//     if (!historyDoc.chats.length) {
-//       return ApiResponse(
-        
-//         {
-//           ...historyDoc,
-//           chats: []
-//         },
-//         "History fetched"
-//       );
-//     }
+    // ---------------------------------
+    // 3️⃣ Time-based filtering
+    // ---------------------------------
+    let filteredChats = historyDoc.chats;
 
-//     // 4️⃣ Now aggregate Chats based on Redis chatIds
-//     const chats = await History.aggregate([
-//       {
-//         $match: { _id: historyDoc._id }
-//       },
-//       {
-//         $project: {
-//           chats: historyDoc.chats.map((id) => new Types.ObjectId(id))
-//         }
-//       },
-//       {
-//         $unwind: "$chats"
-//       },
-//       {
-//         $lookup: {
-//           from: "chats",
-//           localField: "chats",
-//           foreignField: "_id",
-//           as: "chat"
-//         }
-//       },
-//       { $unwind: "$chat" },
+    if ((since || until) && filteredChats.length > 0) {
+      const objectIds = filteredChats.map(id => new Types.ObjectId(id));
+      const match: any = { _id: { $in: objectIds } };
 
-//       // lookup: aiResponse
-//       {
-//         $lookup: {
-//           from: "genairesponses",
-//           localField: "chat.aiResponse",
-//           foreignField: "_id",
-//           as: "aiResponse"
-//         }
-//       },
-//       { $unwind: { path: "$aiResponse", preserveNullAndEmptyArrays: true } },
+      if (since) match.createdAt = { $gte: since };
+      if (until) match.createdAt = { ...match.createdAt, $lte: until };
 
-//       // lookup: prompt
-//       {
-//         $lookup: {
-//           from: "prompts",
-//           localField: "chat.prompt",
-//           foreignField: "_id",
-//           as: "prompt"
-//         }
-//       },
-//       { $unwind: { path: "$prompt", preserveNullAndEmptyArrays: true } },
+      const chatsFromDB = await History.db.collection("chats").find(match).toArray();
+      filteredChats = chatsFromDB.map(c => c._id.toString());
+    }
 
-//       {
-//         $project: {
-//           _id: "$chat._id",
-//           createdAt: "$chat.createdAt",
-//           title: "$chat.title",
-//           prompt: "$prompt",
-//           aiResponse: "$aiResponse"
-//         }
-//       }
-//     ]);
+    // ---------------------------------
+    // 4️⃣ Return result
+    // ---------------------------------
+    return new ApiResponse( 200,
+      { _id: historyDoc._id, chats: filteredChats },
+      "History fetched successfully"
+    );
 
-//     return ApiResponse.success(
-//       {
-//         ...historyDoc,
-//         chats
-//       },
-//       "History fetched"
-//     );
-//   } catch (err: any) {
-//     throw new ApiError(500, err.message);
-//   }
-// };
+  } catch (err: any) {
+    throw new ApiError(500, err.message);
+  }
+};
+

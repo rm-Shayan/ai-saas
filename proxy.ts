@@ -66,5 +66,5 @@ export default async function proxy(req: NextRequest) {
 
 // Apply proxy only on /api/auth/user route
 export const config = {
-  matcher: ["/api/auth/user", "/api/auth/user/:path*","/api/chat/:path*"],
+  matcher: ["/api/auth/user", "/api/auth/user/:path*","/api/chat/:path*","/api/prompt","/api/prompt/:path*","/api/history/:path*"],
 };

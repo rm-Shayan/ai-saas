@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import { toast } from "react-hot-toast";
 
 // --- Configuration ---
-const BASE_API_URL = process.env.NEXT_PUBLIC_PROD_URL;
+ export const BASE_API_URL = process.env.NEXT_PUBLIC_PROD_URL;
 
 
 // -------------------- Types --------------------
@@ -27,6 +27,7 @@ interface AuthState {
   loading: boolean;
   error: string | null;
   isVerified: boolean;
+   fetched:boolean;
 }
 
 // -------------------- Initial State --------------------
@@ -35,6 +36,7 @@ const initialState: AuthState = {
   loading: false,
   error: null,
   isVerified: false,
+fetched:false,
 };
 
 // -------------------- Reusable API Helper --------------------
@@ -52,34 +54,37 @@ interface ApiResponse<T> {
 }
 
 export const apiRequest = async <T, D = any>(
-  endpoint: string,
-  method: "GET" | "POST" | "PUT",
-  data?: D,
-  includeCredentials: boolean = false
+  endpoint: string,
+  method: "GET" | "POST" | "PUT"|"DELETE"|"PATCH",
+  data?: D,
+  includeCredentials: boolean = false
 ): Promise<ApiResponse<T>> => {
-  const url = endpoint.startsWith("/api") ? `${BASE_API_URL}${endpoint}` : endpoint;
+  const url = endpoint.startsWith("/api") ? `${BASE_API_URL}${endpoint}` : endpoint;
 
-  const options: RequestInit = {
-    method,
-    headers: { "Content-Type": "application/json" },
-    body: data && method !== "GET" ? JSON.stringify(data) : undefined,
-    credentials: includeCredentials ? "include" : "omit",
-  };
+  const options: RequestInit = {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: data && method !== "GET" ? JSON.stringify(data) : undefined,
+    credentials: includeCredentials ? "include" : "same-origin", // safer default
+  };
 
-  const res = await fetch(url, options);
-  const result = await res.json();
+  const res = await fetch(url, options);
+  let result: any;
 
-  console.log("result in api", result);
+  try {
+    result = await res.json();
+  } catch (err) {
+    throw new Error(`Invalid JSON response from ${endpoint}`);
+  }
 
-  if (!res.ok) {
-    throw new Error(result.message || `Request to ${endpoint} failed with status ${res.status}`);
-  }
+  console.log("result in api", result);
 
-  // ✅ Hamesha pure response return karo
-  return result as ApiResponse<T>;
+  if (!res.ok) {
+    throw new Error(result?.message || `Request to ${endpoint} failed with status ${res.status}`);
+  }
+
+  return result as ApiResponse<T>;
 };
-
-
 
 // -------------------- Async Thunks --------------------
 
@@ -275,12 +280,12 @@ export const authSlice = createSlice({
       // Session refresh is often silent, avoiding a toast unless necessary
     });
     
-    builder.addCase(getUser.fulfilled, (state, action: PayloadAction<IInvestorFields>) => {
-      state.loading = false;
-      state.authenticator = action.payload;
-      state.isVerified = action.payload.verified || false;
-    });
-
+   builder.addCase(getUser.fulfilled, (state, action: PayloadAction<IInvestorFields>) => {
+        state.loading = false;
+        state.authenticator = action.payload;
+        state.isVerified = action.payload.verified || false;
+        state.fetched = true; // ✅ mark as fetched
+      })
     builder.addCase(updateUser.fulfilled, (state, action: PayloadAction<IInvestorFields>) => {
       state.loading = false;
       state.authenticator = action.payload;

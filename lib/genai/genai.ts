@@ -1,40 +1,75 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import JSON5 from "json5";
 
-const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const ai = new GoogleGenerativeAI( process.env.GEMINI_API_KEY!);
 
-// 🔹 Robust JSON parser
-function safeParseJSON(rawText: string, fallback: any = {}) {
+// 🔹 Extract the first valid JSON from a string (supports nested objects/arrays)
+function extractJSON(rawText: string): string | null {
+  if (!rawText || typeof rawText !== "string") return null;
+
+  // Remove any leading/trailing whitespace
+  rawText = rawText.trim();
+
+  // Quick check: entire text is valid JSON
   try {
-    if (!rawText || typeof rawText !== "string") return fallback;
+    JSON.parse(rawText);
+    return rawText;
+  } catch {}
 
-    // Extract first JSON block { ... } or [ ... ]
-    const match = rawText.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
-    if (!match) return fallback;
+  // Fallback: extract the first {...} or [...] block using simple stack parsing
+  const stack: string[] = [];
+  let startIdx = -1;
 
-    let jsonStr = match[0];
+  for (let i = 0; i < rawText.length; i++) {
+    const char = rawText[i];
+    if (char === "{" || char === "[") {
+      if (stack.length === 0) startIdx = i;
+      stack.push(char);
+    } else if (char === "}" || char === "]") {
+      const last = stack.pop();
+      if (!last) continue; // unmatched closing
+      if (
+        (last === "{" && char !== "}") ||
+        (last === "[" && char !== "]")
+      ) {
+        // mismatched brackets
+        return null;
+      }
+      if (stack.length === 0 && startIdx !== -1) {
+        return rawText.slice(startIdx, i + 1);
+      }
+    }
+  }
 
-    // Remove trailing commas before } or ]
-    jsonStr = jsonStr.replace(/,(\s*[}\]])/g, "$1");
+  return null; // no valid JSON found
+}
 
-    // Fix unquoted keys: key: value -> "key": value
-    jsonStr = jsonStr.replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":');
-
-    // Replace single quotes around string values with double quotes
-    jsonStr = jsonStr.replace(/:\s*'([^']*)'/g, ': "$1"');
-
-    return JSON.parse(jsonStr);
+// 🔹 Robust JSON parser using JSON5 with fallback
+function safeParseJSON5(rawText: string, fallback: any = {}): any {
+  try {
+    if (!rawText) return fallback;
+    if (typeof rawText === "object") return rawText; // Already parsed
+    return JSON5.parse(rawText);
   } catch (err) {
-    console.warn("safeParseJSON failed, returning fallback.", err);
+    console.warn("safeParseJSON5 failed, returning fallback.", err);
     return fallback;
   }
 }
 
 // 🔹 Main GenAi function
 export const GenAi = async (prompt: string) => {
+  const fallback = {
+    responseType: "general",
+    text: "Error generating AI response.",
+    component: "",
+    chartValues: { labels: [], data: [] },
+    investorURL: "",
+    additionalInfo: "Parsing failed",
+  };
+
   try {
-    const model = ai.getGenerativeModel({
-      model: "gemini-2.5-flash",
-      systemInstruction: `
+    const model = ai.getGenerativeModel({ model: "gemini-2.5-flash" ,
+        systemInstruction: `
 [Identity]
 - You are InvestoCrafy, a smart AI assistant specialized in investment guidance.
 - Always respond as InvestoCrafy in a professional, friendly, and approachable manner.
@@ -86,63 +121,38 @@ Output:
 }
 `,
     });
-
     const result = await model.generateContent(prompt);
 
-    // Inside GenAi function, after the result is received
+    // 🔹 Get raw text
     let rawText = "";
     try {
       rawText =
         typeof result.response?.text === "function"
-          ? result.response.text()
-          : "";
-      console.log("Raw AI Response:", rawText);
-    } catch (err) {
-      console.warn("Failed to get AI response text:", err);
+          ? await result.response.text()
+          : result.response?.text || "";
+    } catch {
       rawText = "";
     }
 
-    // Parse the rawText using safeParseJSON
-    const parsed = safeParseJSON(rawText, {
-      responseType: /invest|startup|company|financial|portfolio|market/i.test(
-        prompt
-      )
-        ? "investment"
-        : "general",
-      text: "Error generating AI response.",
-      component: "",
-      chartValues: { labels: [], data: [] },
-      investorURL: "",
-      additionalInfo: "Parsing failed",
-    });
+    // 🔹 Extract JSON
+    const jsonStr = extractJSON(rawText);
+    const parsed = jsonStr ? safeParseJSON5(jsonStr, fallback) : fallback;
 
-    const finalParsed = {
+    // 🔹 Normalize final output
+    return {
       responseType:
         parsed.responseType ||
         (/invest|startup|company|financial|portfolio|market/i.test(prompt)
           ? "investment"
           : "general"),
-      text: parsed.text || "Error generating AI response.",
-      component: parsed.component || "",
-      chartValues: parsed.chartValues || { labels: [], data: [] },
-      investorURL: parsed.investorURL || "",
-      additionalInfo: parsed.additionalInfo || "Parsing failed",
+      text: parsed.text || fallback.text,
+      component: parsed.component || fallback.component,
+      chartValues: parsed.chartValues || fallback.chartValues,
+      investorURL: parsed.investorURL || fallback.investorURL,
+      additionalInfo: parsed.additionalInfo || fallback.additionalInfo,
     };
-
-    return finalParsed;
   } catch (err: any) {
     console.error("GenAI Error:", err);
-    return {
-      responseType: /invest|startup|company|financial|portfolio|market/i.test(
-        prompt
-      )
-        ? "investment"
-        : "general",
-      text: "Error generating AI response.",
-      component: "",
-      chartValues: { labels: [], data: [] },
-      investorURL: "",
-      additionalInfo: err.message,
-    };
+    return fallback;
   }
 };
