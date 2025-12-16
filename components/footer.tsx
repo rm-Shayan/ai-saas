@@ -2,8 +2,22 @@
 
 import { Facebook, Twitter, Linkedin } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import toast from "react-hot-toast";
+import { useState } from "react";
 
 export default function Footer() {
+  const [email, setEmail] = useState("");
+
+  const handleSubscribe = () => {
+    if (!email.trim()) {
+      toast.error("Please enter a valid email!");
+      return;
+    }
+    // Ideally, send email to backend here
+    toast.success(`Subscribed successfully with ${email}!`);
+    setEmail(""); // Clear input after subscription
+  };
+
   return (
     <footer className="bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 py-12">
       <div className="max-w-7xl mx-auto px-4 grid md:grid-cols-3 gap-8">
@@ -50,10 +64,14 @@ export default function Footer() {
           <div className="flex w-full gap-2">
             <input
               type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               placeholder="Your email"
               className="flex-1 px-4 py-2 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-blue-600 outline-none"
             />
-            <Button className="px-6">Subscribe</Button>
+            <Button className="px-6" onClick={handleSubscribe}>
+              Subscribe
+            </Button>
           </div>
           <p className="text-gray-500 dark:text-gray-400 text-sm">
             We respect your privacy. Unsubscribe anytime.

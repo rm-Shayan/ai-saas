@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export default function Hero() {
   return (
@@ -16,7 +17,9 @@ export default function Hero() {
         </p>
 
         <Button className="mt-8 text-lg px-10 py-6">
+          <Link href={`${process.env.NEXT_PUBLIC_PROD_URL}/Chat` || "http://localhost:3000/Chat"}>
           Start Your Investment Journey
+         </Link>
         </Button>
       </div>
     </section>

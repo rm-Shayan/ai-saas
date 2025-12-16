@@ -1,54 +1,54 @@
 "use client";
 
-import { useEffect, useRef, useMemo } from "react";
+import { useEffect, useRef, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
-import { AppDispatch, RootState } from "@/store/store";
-import { fetchChat, deleteChat, createChat, updateChatTitle } from "@/store/slices/chatSlice";
+import {
+  fetchChat,
+  deleteChat,
+  createChat,
+  updateChatTitle,
+} from "@/store/slices/chatSlice";
 import ChatSidebar from "@/components/chat/chatsidebar";
 import ChatHeader from "@/components/chat/chatHeader";
 import ChatMessages from "@/components/chat/chatMessage";
 import PromptInput from "@/components/chat/promptInput";
 import Loading from "@/app/loading";
 import { sendPrompt } from "@/store/slices/promptSlice";
+import { AppDispatch, RootState } from "@/store/store";
+import AiPage from "@/components/chat/rendercomponent";
+import { IChat } from "@/store/slices/chatSlice";
 
-// ---------------- CHAT TYPE ----------------
-type Chat = {
-  _id: string;
-  title?: string;
-  messages?: any[];
-};
+
 
 export default function ChatPage() {
   const { id } = useParams();
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
-
   const { chats, loading: chatLoading } = useSelector(
     (state: RootState) => state.chat
   );
+
+  const { aiResponse } = useSelector((state: RootState) => state.prompt);
+
+  const [preview, setPreview] = useState(false);
 
   // Track fetched chat IDs to prevent duplicate API calls
   const fetchedChatsRef = useRef<Set<string>>(new Set());
 
   // ---------------- INIT CHAT ----------------
   useEffect(() => {
-    if (!id) return;
-
-    // Already fetched
-    if (fetchedChatsRef.current.has(id.toString())) return;
+    if (!id || fetchedChatsRef.current.has(id.toString())) return;
 
     const fetchCurrentChat = async () => {
       try {
-        const chatsArr: Chat[] = Array.isArray(chats)
-          ? chats
-          : (Object.values(chats) as Chat[]);
+        const exists = Array.isArray(chats)
+          ? chats.some((c) => c._id === id)
+          : Object.values(chats).some((c: any) => c._id === id);
 
-        const exists = chatsArr.some((c) => c._id === id);
-        if (!exists && typeof id === "string") {
+        if (!exists && typeof id == "string") {
           await dispatch(fetchChat({ chatId: id })).unwrap();
         }
-
         fetchedChatsRef.current.add(id.toString());
       } catch (err) {
         console.error("Failed to fetch chat:", err);
@@ -56,18 +56,29 @@ export default function ChatPage() {
     };
 
     fetchCurrentChat();
-  }, [dispatch, id, chats]);
+  }, [dispatch, id]);
 
   // ---------------- CURRENT CHAT ----------------
-  const chatsArr: Chat[] = useMemo(
-    () => (Array.isArray(chats) ? chats : Object.values(chats) as Chat[]),
-    [chats]
-  );
 
-const currentChat: Chat | undefined = useMemo(() => {
+const chatsArr: IChat[] = useMemo(() => {
+  return Array.isArray(chats) ? chats : Object.values(chats) as IChat[];
+}, [chats]);
+
+const currentChat: IChat | undefined = useMemo(() => {
   if (!id || chatsArr.length === 0) return undefined;
-  return chatsArr.find((c: any) => c._id === id || c.chatId === id);
+
+  // find by _id
+
+  return chatsArr.find((c) => {
+console.log("id",c?.chatId.toString())
+    return  c.chatId == id
+  }
+   );
 }, [id, chatsArr]);
+
+
+
+console.log("Current chat:", currentChat);
 
 
   const currentChatTitle = currentChat?.title ?? "New Chat";
@@ -75,17 +86,16 @@ const currentChat: Chat | undefined = useMemo(() => {
     ? currentChat.messages
     : [];
 
-    
-    console.log("messages",currentChatMessages)
   // ---------------- HANDLERS ----------------
   const handlePrompt = async (prompt: string) => {
-    if (prompt.trim()) await dispatch(sendPrompt({ prompt }));
+    if (!prompt.trim()) return;
+    await dispatch(sendPrompt({ prompt }));
   };
 
   const handleDeleteChat = async (chatId?: string, deleteAll?: boolean) => {
     try {
       await dispatch(
-        deleteChat({ chatId, deleteAll: deleteAll ?? false })
+        deleteChat({ chatId: chatId ?? undefined, deleteAll: deleteAll ?? false })
       ).unwrap();
     } catch (err) {
       console.error("Failed to delete chat:", err);
@@ -101,16 +111,14 @@ const currentChat: Chat | undefined = useMemo(() => {
     }
   };
 
-const handleUpdateChatTitle = async (chatId?: string, title?: string) => {
-  if (!chatId || !title) return; // safeguard if chatId or title is undefined
-
-  try {
-    const result = await dispatch(updateChatTitle({ chatId, title })).unwrap();
-    console.log("Chat title updated successfully:", result);
-  } catch (err) {
-    console.error("Failed to update chat title:", err);
-  }
-};
+  const handleUpdateChatTitle = async (chatId?: string, title?: string) => {
+    if (!chatId || !title) return;
+    try {
+      await dispatch(updateChatTitle({ chatId, title })).unwrap();
+    } catch (err) {
+      console.error("Failed to update chat title:", err);
+    }
+  };
 
   // ---------------- RENDER LOADING ----------------
   if (!id || chatLoading || !currentChat) return <Loading />;
@@ -127,7 +135,17 @@ const handleUpdateChatTitle = async (chatId?: string, title?: string) => {
           title={currentChatTitle}
           onCreateChat={handleCreateChat}
           onDeleteChat={handleDeleteChat}
+          // Button click toggles preview
+          onPreviewToggle={() => setPreview((prev) => !prev)}
         />
+
+        {/* AI Component Preview */}
+        {preview && aiResponse?.component && (
+          <div className="p-4 border mb-4 bg-gray-50 rounded">
+         < AiPage/>
+          </div>
+        )}
+
         <ChatMessages messages={currentChatMessages} />
         <PromptInput onSend={handlePrompt} />
       </div>

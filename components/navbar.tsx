@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
+import Link from "next/link";
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
@@ -29,7 +30,7 @@ export default function Navbar() {
     <header className="w-full py-4 border-b backdrop-blur bg-white/80 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 flex justify-between items-center">
         {/* Logo */}
-        <h1 className="text-2xl font-bold text-blue-600">InvestoCrafy</h1>
+      <Link href={process.env.NEXT_PUBLIC_PROD_URL || "http://localhost:3000/"}> <h1 className="text-2xl font-bold text-blue-600">InvestoCrafy</h1></Link>
 
         {/* Desktop Menu */}
         <nav className="hidden md:flex gap-8 text-sm font-medium">
@@ -39,7 +40,7 @@ export default function Navbar() {
         </nav>
 
         {/* Desktop CTA */}
-        <Button className="hidden md:block">Get Started</Button>
+        <Button className="hidden md:block">  <Link href={`${process.env.NEXT_PUBLIC_PROD_URL}/Chat` || "http://localhost:3000/Chat"}>Get Started</Link></Button>
 
         {/* Mobile Toggle Button */}
         {isMobile && (

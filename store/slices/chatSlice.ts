@@ -7,6 +7,7 @@ import { BASE_API_URL } from "./authSlice";
 
 export interface IChat {
   _id: string;
+  chatId: string;      // added to normalize
   title: string;
   messages: any[];
   createdAt: string;
@@ -37,13 +38,28 @@ export const fetchChat = createAsyncThunk<IChat[], { chatId?: string } | void>(
       const url = payload?.chatId
         ? `/api/chat?chatId=${payload.chatId}`
         : `/api/chat`;
-      const result = await apiRequest<IChat[]>(url, "GET");
-      return result.data;
+      const result = await apiRequest<IChat[] | IChat>(url, "GET");
+
+      // Normalize chatId for each chat
+      const normalized: IChat[] = Array.isArray(result.data)
+        ? result.data.map((c) => ({
+            ...c,
+            chatId: c.chatId || c._id,
+          }))
+        : [
+            {
+              ...result.data,
+              chatId: result.data.chatId || result.data._id,
+            },
+          ];
+
+      return normalized;
     } catch (error: any) {
       return rejectWithValue(error.message || "Failed to fetch chats");
     }
   }
 );
+
 
 // Delete chat
 export const deleteChat = createAsyncThunk<IChat, { chatId?: string; deleteAll?: boolean|string }>(
@@ -52,7 +68,7 @@ export const deleteChat = createAsyncThunk<IChat, { chatId?: string; deleteAll?:
     try {
       const result = await apiRequest<IChat>("/api/chat/delete", "DELETE", { chatId, deleteAll });
       toast.success("Chat deleted successfully");
-      return result.data;
+      return { ...result.data, chatId: result.data.chatId || result.data._id };
     } catch (error: any) {
       return rejectWithValue(error.message || "Failed to delete chat");
     }
@@ -66,17 +82,16 @@ export const updateChatTitle = createAsyncThunk<IChat, { chatId?: string; title:
     try {
       const result = await apiRequest<IChat>("/api/chat/update", "PATCH", { chatId, title });
       toast.success("Chat title updated");
-      return result.data;
+      return { ...result.data, chatId: result.data.chatId || result.data._id };
     } catch (error: any) {
       return rejectWithValue(error.message || "Failed to update chat title");
     }
   }
 );
 
-
-// -------------------- Create new chat --------------------
+// Create new chat
 export const createChat = createAsyncThunk<
-  { chat: IChat; history: any }, // returned data type
+  { chat: IChat; history: any },
   void
 >(
   "chat/createChat",
@@ -85,10 +100,13 @@ export const createChat = createAsyncThunk<
       const result = await apiRequest<{
         chat: IChat;
         history: any;
-      }>(`${BASE_API_URL}/chat/create`, "POST"); // adjust URL if needed
+      }>(`${BASE_API_URL}/chat/create`, "POST");
 
       toast.success("Chat created successfully");
-      return result.data;
+      return { 
+        chat: { ...result.data.chat, chatId: result.data.chat.chatId || result.data.chat._id },
+        history: result.data.history 
+      };
     } catch (error: any) {
       toast.error(error.message || "Failed to create chat");
       return rejectWithValue(error.message || "Failed to create chat");
@@ -120,7 +138,7 @@ export const chatSlice = createSlice({
   },
   extraReducers: (builder) => {
     // Common pending/rejected handlers
-    [fetchChat, deleteChat, updateChatTitle].forEach((thunk) => {
+    [fetchChat, deleteChat, updateChatTitle, createChat].forEach((thunk) => {
       builder.addCase(thunk.pending, handlePending);
       builder.addCase(thunk.rejected, handleRejected);
     });
@@ -128,34 +146,24 @@ export const chatSlice = createSlice({
     // Fulfilled handlers
     builder.addCase(fetchChat.fulfilled, (state, action: PayloadAction<IChat[]>) => {
       state.loading = false;
-    
-       if (!Array.isArray(action.payload)) {
-    state.chats = [action.payload];
-  } 
-  // If list of chats fetched
-  else {
-    state.chats = action.payload;
-  }
-
+      state.chats = action.payload;
     });
 
     builder.addCase(deleteChat.fulfilled, (state, action: PayloadAction<IChat>) => {
       state.loading = false;
-      state.chats = state.chats.filter((chat) => chat._id !== action.payload._id);
+      state.chats = state.chats.filter((chat) => chat.chatId !== action.payload.chatId);
     });
 
     builder.addCase(updateChatTitle.fulfilled, (state, action: PayloadAction<IChat>) => {
       state.loading = false;
       state.chats = state.chats.map((chat) =>
-        chat._id === action.payload._id ? action.payload : chat
-      )
-      builder.addCase(createChat.pending, handlePending);
-builder.addCase(createChat.rejected, handleRejected);
-builder.addCase(createChat.fulfilled, (state, action: PayloadAction<{ chat: IChat; history: any }>) => {
-  state.loading = false;
-  // add the new chat to the list
-  state.chats = [...state.chats, action.payload.chat];
-});
+        chat.chatId === action.payload.chatId ? action.payload : chat
+      );
+    });
+
+    builder.addCase(createChat.fulfilled, (state, action: PayloadAction<{ chat: IChat; history: any }>) => {
+      state.loading = false;
+      state.chats.push(action.payload.chat);
     });
   },
 });

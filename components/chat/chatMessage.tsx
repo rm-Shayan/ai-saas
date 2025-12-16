@@ -16,7 +16,7 @@ interface IMessageForUI {
 }
 
 interface ChatMessagesProps {
-  messages: any[]; // raw messages fetched from chat, could be nested
+  messages: any[]; // raw messages fetched from chat
 }
 
 export default function ChatMessages({ messages }: ChatMessagesProps) {
@@ -29,56 +29,79 @@ export default function ChatMessages({ messages }: ChatMessagesProps) {
 
   useEffect(() => {
     const mergedMessages: IMessageForUI[] = [];
+    const existingIds = new Set<string>();
 
+    // Parent messages
     if (messages && messages.length) {
       messages.forEach((m, index) => {
-        // Destructure prompt and AI response from each chat object
         if (m.prompt) {
+          const id = m.prompt._id || `prompt_${index}_${Date.now()}`;
           mergedMessages.push({
-            _id: m.prompt._id || `prompt_${index}_${Date.now()}`,
+            _id: id,
             content: m.prompt.text || "",
             type: "investor",
             timestamp: m.prompt.createdAt || new Date().toISOString(),
           });
+          existingIds.add(id);
         }
-
         if (m.aiResponse) {
+          const id = m.aiResponse._id || `ai_${index}_${Date.now()}`;
           mergedMessages.push({
-            _id: m.aiResponse._id || `ai_${index}_${Date.now()}`,
+            _id: id,
             content: m.aiResponse.text || "",
             type: "ai",
             additionalInfo: m.aiResponse.additionalInfo,
             timestamp: m.aiResponse.createdAt || new Date().toISOString(),
           });
+          existingIds.add(id);
         }
       });
     }
 
-    // Append latest Redux prompt (optional)
+    // Redux latest prompt (add only if not in parent messages)
     if (promptMessage) {
-      mergedMessages.push({
-        _id: promptMessage._id || `prompt_${Date.now()}`,
-        content: promptMessage.prompt || promptMessage._id || "",
-        type: "investor",
-        timestamp: promptMessage.createdAt || new Date().toISOString(),
-      });
+      const id = promptMessage._id || `prompt_${Date.now()}`;
+      if (!existingIds.has(id)) {
+        mergedMessages.push({
+          _id: id,
+          content: promptMessage.prompt || "",
+          type: "investor",
+          timestamp: promptMessage.createdAt || new Date().toISOString(),
+        });
+        existingIds.add(id);
+      }
     }
 
-    // Append latest Redux AI response (optional)
+    // Redux latest AI response (add only if not in parent messages)
     if (aiResponse) {
+      const id = aiResponse._id || `ai_${Date.now()}`;
+      if (!existingIds.has(id)) {
+        mergedMessages.push({
+          _id: id,
+          content: aiResponse.text || "",
+          type: "ai",
+          additionalInfo: aiResponse.additionalInfo,
+          timestamp: aiResponse.createdAt || new Date().toISOString(),
+        });
+        existingIds.add(id);
+      }
+    }
+
+    // Default AI message
+    if (mergedMessages.length === 0) {
       mergedMessages.push({
-        _id: aiResponse._id || `ai_${Date.now()}`,
-        content: aiResponse.text || "",
+        _id: "default_ai_msg",
+        content:
+          "Hello! I am your AI assistant. Type a prompt below to start the conversation.",
         type: "ai",
-        additionalInfo: aiResponse.additionalInfo,
-        timestamp: aiResponse.createdAt || new Date().toISOString(),
+        timestamp: new Date().toISOString(),
       });
     }
 
     setMessagesForUI(mergedMessages);
   }, [messages, promptMessage, aiResponse]);
 
-  // Auto-scroll to bottom
+  // Auto-scroll
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -88,19 +111,15 @@ export default function ChatMessages({ messages }: ChatMessagesProps) {
   return (
     <ScrollArea className="flex-1 px-6 py-4">
       <div ref={scrollRef} className="flex flex-col gap-4">
-        {messagesForUI.length === 0 ? (
-          <p className="text-gray-500 text-sm">No messages yet</p>
-        ) : (
-          messagesForUI.map((m) => (
-            <MessageBubble
-              key={m._id}
-              text={m.content}
-              sender={m.type}
-              additionalInfo={m.additionalInfo}
-              timestamp={m.timestamp}
-            />
-          ))
-        )}
+        {messagesForUI.map((m) => (
+          <MessageBubble
+            key={m._id}
+            text={m.content}
+            sender={m.type}
+            additionalInfo={m.additionalInfo}
+            timestamp={m.timestamp}
+          />
+        ))}
       </div>
     </ScrollArea>
   );

@@ -1,9 +1,11 @@
-"use client";
 
 import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "@/components/provider";
 import { Toaster } from "react-hot-toast";
 import PrivateRoute from "@/components/Route/PrivateRoute";
+import { createMetadata } from "@/Utils/generatemetadata";
+import { Metadata } from "next";
+import Script from "next/script";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,40 +21,41 @@ interface ChatLayoutProps {
   children: React.ReactNode;
 }
 
+export const generateMetadata = (): Metadata => {
+  return createMetadata({
+    title: "InvestoCrafy – AI Investment Advisor | Chat Pages",
+    description:
+      "InvestoCrafy is an AI-powered investment and startup advisor. Analyze, evaluate, and get insights before investing in startups or products.",
+    url: "https://www.investocrafy.com",
+  });
+};
+
+
 export default function ChatLayout({ children }: ChatLayoutProps) {
   return (
-   <html lang="en">
-      <head>
-        {/* Structured Data JSON-LD */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "WebSite",
-              name: "InvestoCrafy",
-              url: "https://www.investocrafy.com",
-              potentialAction: {
-                "@type": "SearchAction",
-                target:
-                  "https://www.investocrafy.com/search?q={search_term_string}",
-                "query-input": "required name=search_term_string",
-              },
-            }),
-          }}
-        />
-      </head>
+    <div
+      className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 dark:bg-gray-900 min-h-screen`}
+    >
+      {/* Structured Data JSON-LD */}
+      <Script id="structured-data" type="application/ld+json">
+        {JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: "InvestoCrafy",
+          url: "https://www.investocrafy.com",
+          potentialAction: {
+            "@type": "SearchAction",
+            target:
+              "https://www.investocrafy.com/search?q={search_term_string}",
+            "query-input": "required name=search_term_string",
+          },
+        })}
+      </Script>
 
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 dark:bg-gray-900`}
-      >
-        <Providers>
-          <Toaster position="top-right" />
-          <PrivateRoute> 
-            {children}
-            </PrivateRoute>
-        </Providers>
-      </body>
-    </html>
+      <Providers>
+        <Toaster position="top-right" />
+        <PrivateRoute>{children}</PrivateRoute>
+      </Providers>
+    </div>
   );
 }

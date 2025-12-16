@@ -20,11 +20,12 @@ export default function MessageBubble({
       className={cn(
         "max-w-[80%] p-3 rounded-xl text-sm break-words shadow-sm",
         sender === "investor"
-          ? "bg-blue-500 text-white ml-auto" // 💙 Investor messages
-          : "bg-white text-gray-900 mr-auto" // 🤖 AI messages white with dark text
+          ? "bg-blue-500 text-white ml-auto"
+          : "bg-white text-gray-900 mr-auto"
       )}
     >
-      <div>{text}</div>
+      {/* Ensure text is always shown */}
+      <div>{text || "[No message]"}</div>
 
       {additionalInfo && (
         <div className="mt-1 text-xs text-gray-700">{additionalInfo}</div>
