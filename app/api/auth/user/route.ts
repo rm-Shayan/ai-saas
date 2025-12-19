@@ -17,7 +17,7 @@ export const GET = async (req: NextRequest) => {
     // Rate limiter config
     const options = {
       keyPrefix: "getUser",
-      limit: 5,    // max 5 requests
+      limit: 6,    // max 5 requests
       ttl: 60,    // 5 minutes
     };
 

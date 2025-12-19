@@ -1,98 +1,191 @@
 "use client";
 
-import React, { useState } from "react";
-import { useSelector } from "react-redux";
-import { RootState } from "@/store/store";
-import { IAiComponent } from "@/store/slices/promptSlice";
+import React, { useRef, useEffect } from "react";
 import {
   Chart as ChartJS,
+  BarElement,
   CategoryScale,
   LinearScale,
-  BarElement,
+  RadarController,
+  PointElement,
+  LineElement,
+  ArcElement,
   Title,
   Tooltip,
   Legend,
+  LineController,
+   Filler, 
 } from "chart.js";
-import { Bar } from "react-chartjs-2";
 
-// Register chart.js components
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+/* ---------------- Chart Register ---------------- */
 
-// ---------------- RENDER AI COMPONENT ----------------
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  PointElement,
+  LineElement,
+  LineController,
+  RadarController,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+   Filler, 
+);
+
+/* ---------------- Types ---------------- */
+
+export interface IAiComponent {
+  name?: string;
+  props?: Record<string, any>;
+  children?: IAiComponent[] | string;
+}
+
 interface RenderAiProps {
-  component?: IAiComponent;
+  component?: IAiComponent | null;
   chartValues?: { labels: string[]; data: number[] };
 }
 
-const RenderAiComponent: React.FC<RenderAiProps> = ({ component, chartValues }) => {
-  if (!component || !component.name) return null;
+/* ---------------- Unsafe Parents ---------------- */
 
-  const { name, props } = component;
+const VALID_HTML_TAGS = new Set([
+  "div","p","span","h1","h2","h3","h4","h5","h6",
+  "ul","ol","li",
+  "section","article","header","footer","main",
+  "strong","em","b","i","u","small",
+  "button","a","img","table","thead","tbody","tr","td",
+]);
 
-  // Render Chart if name is "Chart"
-  if (name === "Chart" && chartValues) {
-    const chartData = {
-      labels: chartValues.labels,
-      datasets: [
-        {
-          label: "Values",
-          data: chartValues.data,
-          backgroundColor: "rgba(59, 130, 246, 0.5)",
-          borderColor: "rgba(59, 130, 246, 1)",
-          borderWidth: 1,
-        },
-      ],
-    };
-    return <Bar data={chartData} />;
+
+/* ---------------- Component ---------------- */
+
+export const RenderAiComponent: React.FC<RenderAiProps> = ({
+  component,
+  chartValues,
+}) => {
+  if (!component) return null;
+
+  const { name: rawType = "div", props = {}, children: fallbackChildren } =
+    component;
+
+  const children = props.children ?? fallbackChildren;
+
+  const elementType =   typeof rawType === "string" ? rawType.toLowerCase() : "div";
+
+  /* ---------------- Chart Detection ---------------- */
+
+  const isChart =
+    props.config &&
+    typeof props.config === "object" &&
+    typeof props.config.type === "string";
+
+  /* ✅ Hooks ALWAYS at top level */
+  const chartRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    if (!isChart || !chartRef.current) return;
+
+    const ctx = chartRef.current.getContext("2d");
+    if (!ctx) return;
+
+    const config = structuredClone(props.config);
+
+    if (chartValues) {
+      config.data.labels = chartValues.labels;
+      config.data.datasets[0].data = chartValues.data;
+    }
+
+    const chart = new ChartJS(ctx, config);
+    return () => chart.destroy();
+  }, [isChart, props.config, chartValues]);
+
+  if (isChart) {
+    return <canvas ref={chartRef} />;
   }
 
-  // Recursive rendering for children
-  const renderChildren = (children: any) => {
-    if (!children) return null;
-    if (Array.isArray(children)) {
-      return children.map((child, index) =>
-        child?.name ? (
-          <RenderAiComponent key={index} component={child} chartValues={chartValues} />
-        ) : (
-          <React.Fragment key={index}>{child}</React.Fragment>
-        )
-      );
-    }
-    return children;
-  };
+  /* ---------------- Children Renderer ---------------- */
 
-  return React.createElement(name, props ?? {}, props?.children ? renderChildren(props.children) : null);
+ const renderChildren = (nodes: any): React.ReactNode => {
+  if (nodes == null) return null;
+
+  // console.log("node",typeof nodes,nodes)
+  // string / number
+  if (typeof nodes === "string" || typeof nodes === "number") {
+
+    console.log(nodes)
+    return <>
+    {nodes}</>;
+  }
+
+  // array
+  if (Array.isArray(nodes)) {
+    return nodes.map((child, idx) => {
+      if (child == null) return null;
+
+      if (typeof child === "string" || typeof child === "number") {
+        return <React.Fragment key={idx}>{child}</React.Fragment>;
+      }
+
+      if (typeof child === "object" && child?.name) {
+        return (
+          <RenderAiComponent
+            key={idx}
+            component={child}
+            chartValues={chartValues}
+          />
+        );
+      }
+
+      return null; // ❗ INVALID CHILD
+    });
+  }
+
+  // single valid component object
+  if (typeof nodes === "object" && nodes?.name) {
+    return (
+      <RenderAiComponent
+        component={nodes}
+        chartValues={chartValues}
+      />
+    );
+  }
+
+  // ❗ everything else ignored
+  return null;
 };
 
-// ---------------- AI PAGE WITH PREVIEW TOGGLE ----------------
-export default function AiPage() {
-  const { aiResponse, preview } = useSelector((state: RootState) => state.prompt);
 
-  const component = aiResponse?.component;
-  const chartValues = aiResponse?.chartValues; // Only labels and data
+  /* ---------------- Parent Safety ---------------- */
 
-  const [showPreview, setShowPreview] = useState(false);
+const safeType =
+  VALID_HTML_TAGS.has(elementType)
+    ? elementType
+    : "div";
 
-  const handleTogglePreview = () => setShowPreview((prev) => !prev);
 
-  return (
-    <div className="p-4">
-      <h1 className="text-xl font-bold mb-4">AI Response Render</h1>
+  /* ❗ VERY IMPORTANT: invalid DOM props remove karo */
+  const {
+    children: _ignored,
+    config,
+    type,
+    name,
+    ...restProps
+  } = props;
 
-      {preview && (
-        <button
-          onClick={handleTogglePreview}
-          className="mb-4 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-        >
-          {showPreview ? "Hide Preview" : "Show Preview"}
-        </button>
-      )}
+const sanitizedClassName =
+  typeof restProps.className === "string"
+    ? restProps.className.replace(/text-white|opacity-\d+/g, "")
+    : undefined;
 
-      {showPreview && component ? (
-        <RenderAiComponent component={component} chartValues={chartValues} />
-      ) : showPreview && !component ? (
-        <p className="text-gray-500">No AI component to render yet.</p>
-      ) : null}
-    </div>
-  );
-}
+    const sanitizedProps = {
+  ...restProps,
+  className: sanitizedClassName,
+};
+
+ return React.createElement(
+  safeType,
+  sanitizedProps,
+  renderChildren(children)
+);
+};

@@ -17,15 +17,16 @@ export interface IPromptObject {
   __v: number;
 }
 
-export interface IAiComponent {
-  name: string;
-  props: any;
+export interface IAIComponent {
+  type: string;
+  props?: Record<string, any>;
+  children?: IAIComponent[] | string;
 }
 
 export interface IAiResponse {
   responseType: string;
   text: string;
-  component: IAiComponent;
+  component: IAIComponent;
   chartValues?: { labels: string[]; data: number[] };
   additionalInfo?: string;
   investorID?: string;
@@ -76,6 +77,7 @@ export interface PromptResponseData {
   message: IMessage;
   redisChat?: IRedisChat;
   history?: IHistory;
+  preview?: IAIComponent | null; // optional latest component
 }
 
 /* ---------- GENERIC API RESPONSE ---------- */
@@ -92,7 +94,7 @@ interface PromptState {
   error: string | null;
   prompt: IPromptObject | null;
   aiResponse: IAiResponse | null;
-  preview: IAiComponent | null;
+  preview: IAIComponent | null;
   chat: IChat | null;
   message: IMessage | null;
   redisChat: IRedisChat | null;
@@ -104,20 +106,17 @@ const initialState: PromptState = {
   error: null,
   prompt: null,
   aiResponse: null,
-
-  preview: null, // 👈 NEW
-
+  preview: null,
   chat: null,
   message: null,
   redisChat: null,
   history: null,
 };
 
-
 /* ===================== THUNK ===================== */
 
 export const sendPrompt = createAsyncThunk<
-  ApiResponse<PromptResponseData>, // ✅ fulfilled type
+  ApiResponse<PromptResponseData>,
   IPromptRequest,
   { rejectValue: string }
 >(
@@ -126,17 +125,14 @@ export const sendPrompt = createAsyncThunk<
     if (!payload.prompt.trim()) {
       return thunkAPI.rejectWithValue("Prompt cannot be empty.");
     }
-
     try {
-      // ❗ sirf INNER data type pass hota hai
       const response = await apiRequest<PromptResponseData>(
         "/api/prompt",
         "POST",
         { prompt: payload.prompt },
         true
       );
-
-      return response; // ✅ ApiResponse<PromptResponseData>
+      return response;
     } catch (error: any) {
       return thunkAPI.rejectWithValue(
         error?.message || "Failed to get AI response."
@@ -156,6 +152,7 @@ const promptSlice = createSlice({
       state.error = null;
       state.prompt = null;
       state.aiResponse = null;
+      state.preview = null;
       state.chat = null;
       state.message = null;
       state.redisChat = null;
@@ -167,7 +164,7 @@ const promptSlice = createSlice({
       .addCase(sendPrompt.pending, (state) => {
         state.loading = true;
         state.error = null;
-        state.preview = null; // 🧹 OLD component removed
+        state.preview = null; // remove old preview
       })
       .addCase(sendPrompt.rejected, (state, action) => {
         state.loading = false;
@@ -176,7 +173,6 @@ const promptSlice = createSlice({
       })
       .addCase(sendPrompt.fulfilled, (state, action) => {
         state.loading = false;
-
         const data = action.payload.data;
 
         state.prompt = data.prompt;
@@ -185,8 +181,9 @@ const promptSlice = createSlice({
         state.message = data.message;
         state.redisChat = data.redisChat ?? null;
         state.history = data.history ?? null;
-         state.preview = data?.aiResponse?.component?? null;
 
+        // always latest AI component
+        state.preview = data.aiResponse?.component ?? null;
       });
   },
 });

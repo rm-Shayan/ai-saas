@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { refreshToken, getUser } from "@/store/slices/authSlice";
+import { refreshToken, getUser, logout } from "@/store/slices/authSlice";
 import { RootState, AppDispatch } from "@/store/store";
 import { useRouter } from "next/navigation";
-import Loading from "../../app/loading";
 
 interface PrivateRouteProps {
   children: React.ReactNode;
@@ -15,64 +14,56 @@ const PrivateRoute = ({ children }: PrivateRouteProps) => {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
 
-  const { authenticator, loading, fetched } = useSelector(
-    (state: RootState) => state.auth
-  );
+  const { authenticator } = useSelector((state: RootState) => state.auth);
+  const refreshingRef = useRef(false); // prevent multiple refresh
+  const fetchingRef = useRef(false);   // prevent multiple getUser calls
 
-  const [authChecked, setAuthChecked] = useState(false);
-
+  /* ---------------- Initial Auth Check ---------------- */
   useEffect(() => {
-    const checkAuth = async () => {
-      if (authenticator?._id || fetched) {
-        // Already fetched once → skip API
-        setAuthChecked(true);
-        return;
-      }
+    const initAuth = async () => {
+      if (fetchingRef.current) return;
+      fetchingRef.current = true;
 
       try {
-        // 1️⃣ Try get user
+        // Try getting the user
         await dispatch(getUser()).unwrap();
       } catch {
         try {
-          // 2️⃣ Try refresh token
+          // Try silent refresh
           await dispatch(refreshToken()).unwrap();
-
-          // 3️⃣ If refresh success → get user again
           await dispatch(getUser()).unwrap();
         } catch {
-          // ❌ Both failed → logout & redirect
-          dispatch({ type: "auth/logout" });
+          // Logout and redirect if all fails
+          dispatch(logout());
           router.replace("/login");
         }
-      } finally {
-        setAuthChecked(true);
       }
     };
 
-    checkAuth();
-  }, [dispatch, authenticator?._id, fetched, router]);
+    initAuth();
+  }, [dispatch, router]);
 
-  // 🔁 Auto refresh token every 15 minutes
+  /* ---------------- Silent Token Refresh ---------------- */
   useEffect(() => {
     const interval = setInterval(async () => {
-      if (!authenticator?._id) return;
+      if (!authenticator?._id || refreshingRef.current) return;
 
+      refreshingRef.current = true;
       try {
         await dispatch(refreshToken()).unwrap();
       } catch {
-        dispatch({ type: "auth/logout" });
+        dispatch(logout());
         router.replace("/login");
+      } finally {
+        refreshingRef.current = false;
       }
-    }, 15 * 60 * 1000);
+    }, 14 * 60 * 1000);
 
     return () => clearInterval(interval);
-  }, [dispatch, router, authenticator?._id]);
+  }, [dispatch, authenticator?._id, router]);
 
-  // ⏳ Show loader until auth check finishes
-  if (!authChecked || loading) {
-    return <Loading />;
-  }
-
+  /* ---------------- Render ---------------- */
+  // Render children immediately — page won't be stuck
   return <>{children}</>;
 };
 

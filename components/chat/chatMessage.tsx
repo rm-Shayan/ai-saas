@@ -20,7 +20,7 @@ interface ChatMessagesProps {
 }
 
 export default function ChatMessages({ messages }: ChatMessagesProps) {
-  const { message: promptMessage, aiResponse } = useSelector(
+  const {prompt, aiResponse } = useSelector(
     (state: RootState) => state.prompt
   );
 
@@ -31,24 +31,25 @@ export default function ChatMessages({ messages }: ChatMessagesProps) {
     const mergedMessages: IMessageForUI[] = [];
     const existingIds = new Set<string>();
 
-    // Parent messages
-    if (messages && messages.length) {
-      messages.forEach((m, index) => {
-        if (m.prompt) {
-          const id = m.prompt._id || `prompt_${index}_${Date.now()}`;
+    // ---------------- Parent messages ----------------
+    if (messages?.length) {
+      messages.forEach((m: any, index: number) => {
+        if (m.prompt?.text?.trim()) {
+          const id = m.prompt._id || `prompt_${index}`;
           mergedMessages.push({
             _id: id,
-            content: m.prompt.text || "",
+            content: m.prompt.text,
             type: "investor",
             timestamp: m.prompt.createdAt || new Date().toISOString(),
           });
           existingIds.add(id);
         }
-        if (m.aiResponse) {
-          const id = m.aiResponse._id || `ai_${index}_${Date.now()}`;
+
+        if (m.aiResponse?.text?.trim()) {
+          const id = m.aiResponse._id || `ai_${index}`;
           mergedMessages.push({
             _id: id,
-            content: m.aiResponse.text || "",
+            content: m.aiResponse.text,
             type: "ai",
             additionalInfo: m.aiResponse.additionalInfo,
             timestamp: m.aiResponse.createdAt || new Date().toISOString(),
@@ -58,27 +59,27 @@ export default function ChatMessages({ messages }: ChatMessagesProps) {
       });
     }
 
-    // Redux latest prompt (add only if not in parent messages)
-    if (promptMessage) {
-      const id = promptMessage._id || `prompt_${Date.now()}`;
+    // ---------------- Redux latest prompt ----------------
+    if (prompt?.text.trim()) {
+      const id = prompt._id || `prompt_${Date.now()}`;
       if (!existingIds.has(id)) {
         mergedMessages.push({
           _id: id,
-          content: promptMessage.prompt || "",
+          content: prompt.text,
           type: "investor",
-          timestamp: promptMessage.createdAt || new Date().toISOString(),
+          timestamp: prompt.createdAt || new Date().toISOString(),
         });
         existingIds.add(id);
       }
     }
 
-    // Redux latest AI response (add only if not in parent messages)
-    if (aiResponse) {
+    // ---------------- Redux latest AI response ----------------
+    if (aiResponse?.text?.trim()) {
       const id = aiResponse._id || `ai_${Date.now()}`;
       if (!existingIds.has(id)) {
         mergedMessages.push({
           _id: id,
-          content: aiResponse.text || "",
+          content: aiResponse.text,
           type: "ai",
           additionalInfo: aiResponse.additionalInfo,
           timestamp: aiResponse.createdAt || new Date().toISOString(),
@@ -87,8 +88,12 @@ export default function ChatMessages({ messages }: ChatMessagesProps) {
       }
     }
 
-    // Default AI message
-    if (mergedMessages.length === 0) {
+    // ---------------- Default AI message ----------------
+    const hasRealMessage = mergedMessages.some(
+      (m) => m.content && m.content.trim().length > 0
+    );
+
+    if (!hasRealMessage) {
       mergedMessages.push({
         _id: "default_ai_msg",
         content:
@@ -99,9 +104,9 @@ export default function ChatMessages({ messages }: ChatMessagesProps) {
     }
 
     setMessagesForUI(mergedMessages);
-  }, [messages, promptMessage, aiResponse]);
+  }, [messages, prompt, aiResponse]);
 
-  // Auto-scroll
+  // ---------------- Auto-scroll ----------------
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -111,15 +116,17 @@ export default function ChatMessages({ messages }: ChatMessagesProps) {
   return (
     <ScrollArea className="flex-1 px-6 py-4">
       <div ref={scrollRef} className="flex flex-col gap-4">
-        {messagesForUI.map((m) => (
-          <MessageBubble
-            key={m._id}
-            text={m.content}
-            sender={m.type}
-            additionalInfo={m.additionalInfo}
-            timestamp={m.timestamp}
-          />
-        ))}
+        {messagesForUI.map((m) => {
+          return (
+            <MessageBubble
+              key={m._id}
+              text={m.content}
+              sender={m.type}
+              additionalInfo={m.additionalInfo}
+              timestamp={m.timestamp}
+            />
+          );
+        })}
       </div>
     </ScrollArea>
   );

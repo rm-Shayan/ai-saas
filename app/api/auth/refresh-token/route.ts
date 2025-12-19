@@ -19,7 +19,7 @@ export const GET = async (req: NextRequest) => {
     // 3️⃣ Rate limiting
     const options = {
       keyPrefix: "refresh-token",
-      limit: 5,
+      limit: 6,
       ttl: 300, // 1 minute
     };
 

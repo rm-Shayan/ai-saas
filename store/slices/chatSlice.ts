@@ -5,25 +5,74 @@ import { BASE_API_URL } from "./authSlice";
 
 // -------------------- Types --------------------
 
-export interface IChat {
+// ---------------- PROMPT ----------------
+export interface IPrompt {
   _id: string;
-  chatId: string;      // added to normalize
-  title: string;
-  messages: any[];
+  investorId: string;
+  text: string;
   createdAt: string;
   updatedAt: string;
 }
 
+// ---------------- CHART ----------------
+export interface IChartValues {
+  labels: string[];
+  data: number[];
+}
+
+// ---------------- AI COMPONENT SCHEMA ----------------
+export interface IAIComponent {
+  type: string;
+  props?: Record<string, any>;
+  children?: IAIComponent[] | string;
+}
+
+// ---------------- AI RESPONSE ----------------
+export interface IAIResponse {
+  _id: string;
+  responseType: string;
+  text: string;
+  component: IAIComponent | null | "";
+  chartValues: IChartValues;
+  additionalInfo: string;
+  investorID: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ---------------- MESSAGE ----------------
+export interface IMessage {
+  _id: string;
+  investorId: string;
+  chatId: string;
+  prompt: IPrompt;
+  aiResponse: IAIResponse;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ---------------- CHAT ----------------
+export interface IChat {
+  _id: string;
+  chatId: string;
+  title: string;
+  messages: IMessage[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+
+// -----------initial State ----------------
 interface ChatState {
   chats: IChat[];
+  preview: IAIComponent | null; // 🔥 latest component
   loading: boolean;
   error: string | null;
 }
 
-// -------------------- Initial State --------------------
-
 const initialState: ChatState = {
   chats: [],
+  preview: null,
   loading: false,
   error: null,
 };
@@ -130,12 +179,16 @@ const handleRejected = (state: ChatState, action: any) => {
 export const chatSlice = createSlice({
   name: "chat",
   initialState,
+
   reducers: {
-    clearChats: (state) => {
-      state.chats = [];
-      toast.success("Chats cleared");
-    },
+  clearChats: (state) => {
+    state.chats = [];
+    state.preview = null;
   },
+  clearPreview: (state) => {
+    state.preview = null;
+  }
+},
   extraReducers: (builder) => {
     // Common pending/rejected handlers
     [fetchChat, deleteChat, updateChatTitle, createChat].forEach((thunk) => {
@@ -144,10 +197,15 @@ export const chatSlice = createSlice({
     });
 
     // Fulfilled handlers
-    builder.addCase(fetchChat.fulfilled, (state, action: PayloadAction<IChat[]>) => {
-      state.loading = false;
-      state.chats = action.payload;
-    });
+  builder.addCase(fetchChat.fulfilled, (state, action) => {
+  state.loading = false;
+  state.chats = action.payload;
+
+  // 🔥 find latest ai component
+  const lastChat = action.payload.at(-1);
+  const lastMessage = lastChat?.messages?.at(-1);
+  state.preview = lastMessage?.aiResponse?.component || null;
+});
 
     builder.addCase(deleteChat.fulfilled, (state, action: PayloadAction<IChat>) => {
       state.loading = false;
@@ -168,5 +226,5 @@ export const chatSlice = createSlice({
   },
 });
 
-export const { clearChats } = chatSlice.actions;
+export const { clearChats,clearPreview } = chatSlice.actions;
 export default chatSlice.reducer;

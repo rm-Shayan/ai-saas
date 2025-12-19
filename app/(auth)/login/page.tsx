@@ -41,7 +41,7 @@ export default function LoginPage() {
       toast.success(`Welcome back, ${result.name || authenticator?.name} !`);
 
       // Redirect to dashboard
-      router.push("/Chat/123");
+      router.push("/Chat");
     } catch (error: any) {
       toast.error(error.message || "Login failed. Please try again.");
     } finally {

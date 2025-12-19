@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { getUser, refreshToken } from "@/store/slices/authSlice";
+import { getUser, refreshToken, logout } from "@/store/slices/authSlice";
 import { RootState, AppDispatch } from "@/store/store";
 import { useRouter } from "next/navigation";
-import Loading from "../../app/loading";
 
 interface AuthRouteProps {
   children: React.ReactNode;
@@ -15,59 +14,64 @@ const AuthRoute = ({ children }: AuthRouteProps) => {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
 
-  const { authenticator, loading } = useSelector(
-    (state: RootState) => state.auth
-  );
+  const { authenticator } = useSelector((state: RootState) => state.auth);
 
-  // Track if auth check finished (success or fail)
-  const [authChecked, setAuthChecked] = useState(false);
+  const fetchingRef = useRef(false); // prevent multiple getUser calls
+  const refreshingRef = useRef(false); // prevent multiple refreshToken calls
 
   useEffect(() => {
     const checkAuth = async () => {
+      if (fetchingRef.current) return;
+      fetchingRef.current = true;
+
+      // If already logged in → redirect
       if (authenticator?._id) {
-        // User already in state → redirect
         router.replace("/Chat");
-        setAuthChecked(true);
         return;
       }
 
       try {
-        // 1️⃣ Try get user first
+        // Attempt to get user
         await dispatch(getUser()).unwrap();
-        router.replace("/Chat"); // Success → redirect
+        router.replace("/Chat");
       } catch {
-        console.warn("getUser failed, trying refreshToken...");
-
         try {
-          // 2️⃣ Try refresh token
+          // Silent token refresh
           await dispatch(refreshToken()).unwrap();
-
-          // 3️⃣ If refresh success → get user again
           await dispatch(getUser()).unwrap();
-          router.replace("/Chat"); // Success → redirect
-        } catch (err2) {
-          console.warn(
-            "refreshToken or second getUser failed, user remains unauthenticated",
-            err2
-          );
-          dispatch({ type: "auth/logout" });
-          // ❌ No redirect → allow login/signup page to render
+          router.replace("/Chat");
+        } catch {
+          // All fails → stay on auth page
+          dispatch(logout());
         }
       } finally {
-        // ✅ Auth check finished
-        setAuthChecked(true);
+        fetchingRef.current = false;
       }
     };
 
     checkAuth();
   }, [dispatch, authenticator?._id, router]);
 
-  // Show loader until auth check finishes
-  if (!authChecked || loading) {
-    return <Loading />;
-  }
+  /* ---------------- Optional: silent token refresh while on auth page ---------------- */
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (!authenticator?._id || refreshingRef.current) return;
 
-  // ✅ Render login/signup or children based on authenticator
+      refreshingRef.current = true;
+      try {
+        await dispatch(refreshToken()).unwrap();
+      } catch {
+        dispatch(logout());
+        router.replace("/login");
+      } finally {
+        refreshingRef.current = false;
+      }
+    }, 14 * 60 * 1000); // refresh before expiry
+
+    return () => clearInterval(interval);
+  }, [dispatch, authenticator?._id, router]);
+
+  // Always render login/signup pages immediately
   return <>{children}</>;
 };
 

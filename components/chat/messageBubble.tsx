@@ -3,18 +3,24 @@
 import { cn } from "@/lib/utils";
 
 interface MessageBubbleProps {
-  text: string;
+  text?: string; // 👈 optional
   sender: "investor" | "ai";
   additionalInfo?: string;
   timestamp?: string;
 }
 
 export default function MessageBubble({
-  text,
+  text = "",
   sender,
   additionalInfo,
   timestamp,
 }: MessageBubbleProps) {
+  // ❗ dev-only debug (remove in prod)
+  // console.log("MessageBubble:", { sender, text, timestamp, additionalInfo });
+
+  // 🚫 agar message empty hai to kuch render hi mat karo
+  if (!text.trim()) return null;
+
   return (
     <div
       className={cn(
@@ -24,15 +30,19 @@ export default function MessageBubble({
           : "bg-white text-gray-900 mr-auto"
       )}
     >
-      {/* Ensure text is always shown */}
-      <div>{text || "[No message]"}</div>
+      {/* Message text */}
+      <div className="whitespace-pre-wrap">{text}</div>
 
-      {additionalInfo && (
-        <div className="mt-1 text-xs text-gray-700">{additionalInfo}</div>
+      {/* Optional AI info */}
+      {additionalInfo?.trim() && (
+        <div className="mt-1 text-xs text-gray-600">
+          {additionalInfo}
+        </div>
       )}
 
-      {timestamp && (
-        <div className="mt-1 text-xs text-gray-500 text-right">
+      {/* Timestamp */}
+      {timestamp && !isNaN(Date.parse(timestamp)) && (
+        <div className="mt-1 text-xs text-gray-400 text-right">
           {new Date(timestamp).toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit",

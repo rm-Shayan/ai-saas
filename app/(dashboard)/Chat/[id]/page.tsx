@@ -8,6 +8,8 @@ import {
   deleteChat,
   createChat,
   updateChatTitle,
+  IChat,
+  clearPreview,
 } from "@/store/slices/chatSlice";
 import ChatSidebar from "@/components/chat/chatsidebar";
 import ChatHeader from "@/components/chat/chatHeader";
@@ -16,37 +18,32 @@ import PromptInput from "@/components/chat/promptInput";
 import Loading from "@/app/loading";
 import { sendPrompt } from "@/store/slices/promptSlice";
 import { AppDispatch, RootState } from "@/store/store";
-import AiPage from "@/components/chat/rendercomponent";
-import { IChat } from "@/store/slices/chatSlice";
-
-
+import AiPage from "@/components/chat/Aipage";
 
 export default function ChatPage() {
   const { id } = useParams();
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
-  const { chats, loading: chatLoading } = useSelector(
+
+  const { chats, loading: chatLoading, preview: chatPreview } = useSelector(
     (state: RootState) => state.chat
   );
+ 
+  const { preview:promptPreview,aiResponse:promptAiResponse} = useSelector((state: RootState) => state.prompt);
 
-  const { aiResponse } = useSelector((state: RootState) => state.prompt);
+  // Show preview if chat slice or prompt slice has a component
+  const [showPreview, setShowPreview] = useState<boolean>(!!chatPreview || !!promptPreview);
 
-  const [preview, setPreview] = useState(false);
-
-  // Track fetched chat IDs to prevent duplicate API calls
   const fetchedChatsRef = useRef<Set<string>>(new Set());
 
-  // ---------------- INIT CHAT ----------------
+  // ---------------- FETCH CURRENT CHAT ----------------
   useEffect(() => {
     if (!id || fetchedChatsRef.current.has(id.toString())) return;
 
     const fetchCurrentChat = async () => {
       try {
-        const exists = Array.isArray(chats)
-          ? chats.some((c) => c._id === id)
-          : Object.values(chats).some((c: any) => c._id === id);
-
-        if (!exists && typeof id == "string") {
+        const exists = chats.some((c) => c._id === id);
+        if (!exists && typeof id === "string") {
           await dispatch(fetchChat({ chatId: id })).unwrap();
         }
         fetchedChatsRef.current.add(id.toString());
@@ -56,47 +53,38 @@ export default function ChatPage() {
     };
 
     fetchCurrentChat();
-  }, [dispatch, id]);
+  }, [dispatch, id, chats]);
 
   // ---------------- CURRENT CHAT ----------------
+  const chatsArr: IChat[] = useMemo(() => chats || [], [chats]);
+  const currentChat: IChat | undefined = useMemo(() => {
+    if (!id || chatsArr.length === 0) return undefined;
+    return chatsArr.find((c) => c.chatId == id);
+  }, [id, chatsArr]);
 
-const chatsArr: IChat[] = useMemo(() => {
-  return Array.isArray(chats) ? chats : Object.values(chats) as IChat[];
-}, [chats]);
-
-const currentChat: IChat | undefined = useMemo(() => {
-  if (!id || chatsArr.length === 0) return undefined;
-
-  // find by _id
-
-  return chatsArr.find((c) => {
-console.log("id",c?.chatId.toString())
-    return  c.chatId == id
-  }
-   );
-}, [id, chatsArr]);
-
-
-
-console.log("Current chat:", currentChat);
 
 
   const currentChatTitle = currentChat?.title ?? "New Chat";
-  const currentChatMessages = Array.isArray(currentChat?.messages)
-    ? currentChat.messages
-    : [];
+  const currentChatMessages = currentChat?.messages ?? [];
+
 
   // ---------------- HANDLERS ----------------
   const handlePrompt = async (prompt: string) => {
     if (!prompt.trim()) return;
+
+    // Clear previous chat preview
+    dispatch(clearPreview());
+
+    // Send new prompt
     await dispatch(sendPrompt({ prompt }));
+
+    // Show prompt preview
+    setShowPreview(true);
   };
 
   const handleDeleteChat = async (chatId?: string, deleteAll?: boolean) => {
     try {
-      await dispatch(
-        deleteChat({ chatId: chatId ?? undefined, deleteAll: deleteAll ?? false })
-      ).unwrap();
+      await dispatch(deleteChat({ chatId, deleteAll })).unwrap();
     } catch (err) {
       console.error("Failed to delete chat:", err);
     }
@@ -120,8 +108,21 @@ console.log("Current chat:", currentChat);
     }
   };
 
-  // ---------------- RENDER LOADING ----------------
   if (!id || chatLoading || !currentChat) return <Loading />;
+
+
+  // ---------------- LATEST COMPONENT FOR PREVIEW ----------------
+const latestMessageWithAi = [...currentChatMessages].reverse().find(m => m.aiResponse);
+
+const latestAiResponse = latestMessageWithAi?.aiResponse ?? promptAiResponse;
+
+const latestComponent = promptPreview || latestAiResponse?.component || chatPreview || null;
+
+const latestChartValues = latestAiResponse?.chartValues || {};
+
+  // ---------------- LATEST PROPS ----------------
+
+
 
   return (
     <div className="flex h-screen">
@@ -130,21 +131,19 @@ console.log("Current chat:", currentChat);
         onDeleteChat={handleDeleteChat}
         onUpdate={handleUpdateChatTitle}
       />
-      <div className="flex flex-col flex-1">
+      <div className="flex flex-col flex-1 relative">
         <ChatHeader
           title={currentChatTitle}
           onCreateChat={handleCreateChat}
           onDeleteChat={handleDeleteChat}
-          // Button click toggles preview
-          onPreviewToggle={() => setPreview((prev) => !prev)}
+          onPreviewToggle={() => setShowPreview((prev) => !prev)}
+          preview={showPreview}
         />
 
         {/* AI Component Preview */}
-        {preview && aiResponse?.component && (
-          <div className="p-4 border mb-4 bg-gray-50 rounded">
-         < AiPage/>
-          </div>
-        )}
+   {showPreview && latestComponent && (
+  <AiPage component={latestComponent} chartValues={latestChartValues} />
+)}
 
         <ChatMessages messages={currentChatMessages} />
         <PromptInput onSend={handlePrompt} />
