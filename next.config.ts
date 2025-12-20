@@ -1,8 +1,13 @@
-import type { NextConfig } from "next";
+import { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-    output: "standalone",
+  experimental: {
+    // Turbopack is disabled
+  },
+  // Explicitly use webpack instead
+  webpack: (config) => {
+    return config;
+  },
 };
 
 export default nextConfig;

@@ -6,6 +6,7 @@ import PrivateRoute from "@/components/Route/PrivateRoute";
 import { createMetadata } from "@/Utils/generatemetadata";
 import { Metadata } from "next";
 import Script from "next/script";
+import  "../globals.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

@@ -55,22 +55,32 @@ interface ApiResponse<T> {
 
 export const apiRequest = async <T, D = any>(
   endpoint: string,
-  method: "GET" | "POST" | "PUT"|"DELETE"|"PATCH",
+  method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH",
   data?: D,
   includeCredentials: boolean = false
 ): Promise<ApiResponse<T>> => {
   const url = endpoint.startsWith("/api") ? `${BASE_API_URL}${endpoint}` : endpoint;
 
+  // Check if the payload is FormData
+  const isFormData = data instanceof FormData;
+
   const options: RequestInit = {
     method,
-    headers: { "Content-Type": "application/json" },
-    body: data && method !== "GET" ? JSON.stringify(data) : undefined,
-    credentials: includeCredentials ? "include" : "same-origin", // safer default
+    headers: isFormData
+      ? {} // browser sets proper multipart/form-data headers automatically
+      : { "Content-Type": "application/json" }, // default JSON
+    body:
+      data && method !== "GET"
+        ? isFormData
+          ? data
+          : JSON.stringify(data)
+        : undefined,
+    credentials: includeCredentials ? "include" : "same-origin",
   };
 
   const res = await fetch(url, options);
-  let result: any;
 
+  let result: any;
   try {
     result = await res.json();
   } catch (err) {
@@ -85,6 +95,7 @@ export const apiRequest = async <T, D = any>(
 
   return result as ApiResponse<T>;
 };
+
 
 // -------------------- Async Thunks --------------------
 
@@ -214,16 +225,82 @@ export const getUser = createAsyncThunk<IInvestorFields, void>(
   }
 );
 
-export const updateUser = createAsyncThunk<IInvestorFields, Partial<IInvestorFields>>(
-  "auth/updateUser",
-  async (data, { rejectWithValue }) => {
-    try {
-      const result = await apiRequest<IInvestorFields>("/api/auth/user/update", "PUT", data, true);
-      return result.data; // ✅ unwrap
-    } catch (error: any) {
-      return rejectWithValue(error.message || "Failed to update user");
-    }
-  }
+
+export const updateUser = createAsyncThunk<
+  IInvestorFields,
+  Partial<IInvestorFields>
+>(
+  "auth/updateUser",
+  async (data, { rejectWithValue }) => {
+    try {
+      // ----------------------------
+      // Convert incoming object → FormData
+      // ----------------------------
+      const formData = new FormData();
+      
+      Object.entries(data).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          formData.append(key, value as any);
+        }
+      });
+
+      const result = await apiRequest<IInvestorFields>(
+        "/api/auth/user/update",
+        "PUT",
+        formData,  // ← send as FormData
+        false      // ← Do NOT auto set JSON headers
+      );
+
+      return result.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || "Failed to update user");
+    }
+  }
+);
+
+
+
+export const deleteUser = createAsyncThunk<
+  ThunkMessageResult,
+  void,
+  { rejectValue: string }
+>(
+  "auth/deleteUser",
+  async (_, { rejectWithValue }) => {
+    try {
+      const result = await apiRequest<ThunkMessageResult>(
+        "/api/auth/user/delete",
+        "DELETE",
+        undefined,
+        true
+      );
+      return result.message;
+    } catch (error: any) {
+      return rejectWithValue(error.message || "Failed to delete user");
+    }
+  }
+);
+
+
+export const logoutUser = createAsyncThunk<
+  ThunkMessageResult,
+  void,
+  { rejectValue: string }
+>(
+  "auth/logoutUser",
+  async (_, { rejectWithValue }) => {
+    try {
+      const result = await apiRequest<ThunkMessageResult>(
+        "/api/auth/logout",
+        "POST",
+        undefined,
+        true
+      );
+      return result.message;
+    } catch (error: any) {
+      return rejectWithValue(error.message || "Failed to logout user");
+    }
+  }
 );
 
 // -------------------- Slice --------------------
@@ -321,6 +398,21 @@ export const authSlice = createSlice({
       state.loading = false;
       toast.success(action.payload);
     });
+builder.addCase(logoutUser.fulfilled, (state, action) => {
+  state.loading = false;
+  state.authenticator = null;
+  state.isVerified = false;
+  toast.success(action.payload);
+});
+
+builder.addCase(deleteUser.fulfilled, (state, action) => {
+  state.loading = false;
+  state.authenticator = null;
+  toast.success(action.payload);
+});
+builder.addCase(logoutUser.rejected, handleRejected);
+builder.addCase(deleteUser.rejected, handleRejected);
+
   },
 });
 
