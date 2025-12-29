@@ -101,7 +101,7 @@ export default function ChatHeader({
           <DropdownMenuContent align="end" className="w-44">
             <DropdownMenuItem className="gap-2">
               <Settings className="h-4 w-4" />
-              Settings
+         <Link href={`${process.env.NEXT_PUBLIC_PROD_URL}/settings` || "http://localhost:3000/settings"}> Settings</Link>
             </DropdownMenuItem>
 
             <DropdownMenuSeparator />
