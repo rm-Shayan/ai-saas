@@ -32,35 +32,44 @@ export default function PromptInput({ onSend }: PromptInputProps) {
 
   return (
     <form
-      className="p-4 border-t bg-white flex items-center gap-2"
+      className="border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-4 sm:p-5"
       onSubmit={handleSend}
     >
-      <textarea
-        className="flex-1 border rounded-xl p-3 text-sm resize-none h-12 focus:outline-none"
-        placeholder={loading ? "Waiting for AI response..." : "Type your prompt..."}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={handleKeyDown}
-        disabled={loading}
-      />
+      <div className="mx-auto w-full max-w-4xl flex items-end gap-2 sm:gap-3">
+        <div className="relative flex-1">
+          <textarea
+            className="w-full min-h-[48px] max-h-[240px] border border-input bg-background rounded-xl px-4 py-3 text-sm resize-none shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:border-ring disabled:cursor-not-allowed disabled:opacity-50"
+            placeholder={loading ? "AI is thinking..." : "Type your message here..."}
+            value={value}
+            onChange={(e) => {
+              setValue(e.target.value);
+              e.target.style.height = "auto";
+              e.target.style.height = Math.min(e.target.scrollHeight, 240) + "px";
+            }}
+            onKeyDown={handleKeyDown}
+            onFocus={(e) => {
+              e.target.style.height = "auto";
+              e.target.style.height = Math.min(e.target.scrollHeight, 240) + "px";
+            }}
+            disabled={loading}
+            rows={1}
+            style={{ overflow: "auto" }}
+          />
+        </div>
 
-      <Button
-        type="submit"
-        disabled={loading || !value.trim()}
-        className="flex items-center gap-2"
-      >
-        {loading ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin inline-block" />
-            Loading...
-          </>
-        ) : (
-          <>
+        <Button
+          type="submit"
+          disabled={loading || !value.trim()}
+          size="icon"
+          className="h-12 w-12 shrink-0 rounded-xl shadow-sm"
+        >
+          {loading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
             <Send className="h-4 w-4" />
-            Send
-          </>
-        )}
-      </Button>
+          )}
+        </Button>
+      </div>
     </form>
   );
 }

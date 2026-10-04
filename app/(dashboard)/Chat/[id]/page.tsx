@@ -17,6 +17,7 @@ import ChatMessages from "@/components/chat/chatMessage";
 import PromptInput from "@/components/chat/promptInput";
 import Loading from "@/app/loading";
 import { sendPrompt } from "@/store/slices/promptSlice";
+import { fetchHistory } from "@/store/slices/historySlice";
 import { AppDispatch, RootState } from "@/store/store";
 import AiPage from "@/components/chat/Aipage";
 
@@ -82,9 +83,26 @@ export default function ChatPage() {
     setShowPreview(true);
   };
 
+  useEffect(() => {
+    const handleSuggested = (e: Event) => {
+      const custom = e as CustomEvent<string>;
+      if (custom.detail) handlePrompt(custom.detail);
+    };
+    window.addEventListener("suggestedPrompt", handleSuggested);
+    return () => window.removeEventListener("suggestedPrompt", handleSuggested);
+  }, []);
+
   const handleDeleteChat = async (chatId?: string, deleteAll?: boolean) => {
     try {
       await dispatch(deleteChat({ chatId, deleteAll })).unwrap();
+      if (deleteAll) {
+        router.replace("/Chat");
+      } else if (chatId && id === chatId) {
+        router.replace("/Chat");
+      }
+      setTimeout(() => {
+        dispatch(fetchHistory());
+      }, 100);
     } catch (err) {
       console.error("Failed to delete chat:", err);
     }
@@ -125,13 +143,13 @@ const latestChartValues = latestAiResponse?.chartValues || {};
 
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen bg-background">
       <ChatSidebar
         currentChatTitle={currentChatTitle}
         onDeleteChat={handleDeleteChat}
         onUpdate={handleUpdateChatTitle}
       />
-      <div className="flex flex-col flex-1 relative">
+      <div className="flex flex-col flex-1 min-w-0 relative">
         <ChatHeader
           title={currentChatTitle}
           onCreateChat={handleCreateChat}

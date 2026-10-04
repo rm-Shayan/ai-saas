@@ -25,6 +25,7 @@ export default function ChatSidebar({ currentChatTitle, onDeleteChat, onUpdate }
   const [localChats, setLocalChats] = useState<string[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const { history, loading } = useSelector((state: RootState) => state.history);
   const { chat: promptChat } = useSelector((state: RootState) => state.prompt);
@@ -91,55 +92,79 @@ export default function ChatSidebar({ currentChatTitle, onDeleteChat, onUpdate }
       {/* Sidebar */}
       <div
         className={cn(
-          "fixed z-50 top-0 left-0 h-screen bg-white shadow-lg flex flex-col transform transition-transform duration-300 md:relative md:translate-x-0",
+          "fixed z-50 top-0 left-0 h-screen bg-background border-r border-border flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 shadow-xl md:shadow-none",
           open ? "translate-x-0" : "-translate-x-full",
-          "w-64 sm:w-56 md:w-72 lg:w-80"
+          "w-60 sm:w-64 md:w-72 lg:w-80"
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg md:text-xl lg:text-2xl font-bold truncate">InvestoCrafy</h2>
-          <div className="flex items-center space-x-2">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <h2 className="text-lg md:text-xl font-semibold tracking-tight truncate">InvestoCrafy</h2>
+          <div className="flex items-center gap-1.5">
             <Button
               size="icon"
-              variant="outline"
+              variant="ghost"
               onClick={() => onDeleteChat?.(undefined, true)}
               title="Delete All Chats"
+              className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
             >
-              <Trash2 className="w-5 h-5 text-red-500" />
+              <Trash2 className="w-4 h-4" />
             </Button>
             <Button
               size="icon"
-              variant="outline"
-              className="md:hidden"
+              variant="ghost"
+              className="md:hidden h-9 w-9"
               onClick={() => setOpen(false)}
               aria-label="Close Sidebar"
             >
-              <X className="w-5 h-5 text-gray-700" />
+              <X className="w-5 h-5" />
             </Button>
           </div>
         </div>
 
-        {/* Chat List */}
-        <ScrollArea className="flex-1 bg-gray-50">
-          <div className="p-2 space-y-2">
-            {localChats.map((chatId) => {
-              const active = pathname.includes(chatId);
-              const title = getChatTitle(chatId);
-              const isEditing = editingId === chatId;
+        {/* Search */}
+        <div className="px-3 py-2 border-b border-border bg-background/60">
+          <input
+            type="text"
+            placeholder="Search chats..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-2.5 py-1.5 text-xs rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
+          />
+        </div>
 
-              return (
-                <div
-                  key={chatId}
-                  className={cn(
-                    "flex items-center justify-between rounded-lg px-2 py-1 transition-all duration-200",
-                    active ? "bg-blue-500 text-white shadow-md" : "hover:bg-gray-200"
-                  )}
-                >
-                  <div className="flex-1 flex items-center">
+        {/* Chat List */}
+        <ScrollArea className="flex-1 bg-muted/30">
+          <div className="p-3 space-y-1.5">
+            {localChats
+              .filter((chatId) => {
+                const title = getChatTitle(chatId).toLowerCase();
+                return title.includes(searchTerm.toLowerCase());
+              })
+              .map((chatId) => {
+                const active = pathname.includes(chatId);
+                const title = getChatTitle(chatId);
+                const isEditing = editingId === chatId;
+
+                return (
+                  <div
+                    key={chatId}
+                    className={cn(
+                      "group flex items-center justify-between rounded-lg px-2.5 py-2 transition-all duration-200 ease-out",
+                      active
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "hover:bg-accent hover:text-accent-foreground"
+                    )}
+                  >
+                  <div className="flex-1 flex items-center min-w-0">
                     {isEditing ? (
                       <input
-                        className="flex-1 p-1 text-sm rounded border border-gray-300 focus:outline-none focus:ring focus:ring-blue-300"
+                        className={cn(
+                          "flex-1 px-2 py-1 text-sm rounded-md border focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                          active
+                            ? "bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground placeholder-primary-foreground/60"
+                            : "bg-background border-border"
+                        )}
                         value={newTitle}
                         onChange={(e) => setNewTitle(e.target.value)}
                         onBlur={() => handleUpdateTitle(chatId)}
@@ -148,19 +173,29 @@ export default function ChatSidebar({ currentChatTitle, onDeleteChat, onUpdate }
                       />
                     ) : (
                       <>
-                        <span
-                          className="flex-1 truncate cursor-pointer"
+                        <button
+                          type="button"
+                          className="flex-1 truncate text-left text-sm font-medium leading-tight"
                           onClick={() => handleChatClick(chatId)}
                         >
                           {title}
-                        </span>
-                        <Edit2
-                          className="w-4 h-4 ml-2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                        </button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className={cn(
+                            "ml-1 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity",
+                            active
+                              ? "text-primary-foreground hover:bg-primary-foreground/20"
+                              : "text-muted-foreground hover:bg-muted"
+                          )}
                           onClick={() => {
                             setEditingId(chatId);
                             setNewTitle(title);
                           }}
-                        />
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </Button>
                       </>
                     )}
                   </div>
@@ -169,10 +204,15 @@ export default function ChatSidebar({ currentChatTitle, onDeleteChat, onUpdate }
                     size="icon"
                     variant="ghost"
                     onClick={() => onDeleteChat?.(chatId)}
-                    className="ml-2 text-red-500 hover:text-red-600"
+                    className={cn(
+                      "ml-1 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity",
+                      active
+                        ? "text-primary-foreground hover:bg-primary-foreground/20 hover:text-destructive-foreground"
+                        : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                    )}
                     title="Delete Chat"
                   >
-                    <X className="w-4 h-4" />
+                    <X className="w-3.5 h-3.5" />
                   </Button>
                 </div>
               );

@@ -30,6 +30,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         {/* Structured Data JSON-LD for Search Engines */}
         <script
           type="application/ld+json"
@@ -51,7 +52,7 @@ export default function RootLayout({
       </head>
 
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 dark:bg-gray-900`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 dark:bg-gray-900 overflow-x-hidden`}
       >
                 <Toaster position="top-right" />
         {children}

@@ -7,6 +7,7 @@ import { AppDispatch, RootState } from "@/store/store";
 
 import { createChat, deleteChat } from "@/store/slices/chatSlice";
 import { sendPrompt } from "@/store/slices/promptSlice";
+import { fetchHistory } from "@/store/slices/historySlice";
 
 import ChatSidebar from "@/components/chat/chatsidebar";
 import ChatHeader from "@/components/chat/chatHeader";
@@ -50,6 +51,15 @@ function ChatContent() {
     }
   };
 
+  useEffect(() => {
+    const handleSuggested = (e: Event) => {
+      const custom = e as CustomEvent<string>;
+      if (custom.detail) handlePrompt(custom.detail);
+    };
+    window.addEventListener("suggestedPrompt", handleSuggested);
+    return () => window.removeEventListener("suggestedPrompt", handleSuggested);
+  }, [chat]);
+
   const handleCreateChat = async () => {
     try {
       const newChat = await dispatch(createChat()).unwrap();
@@ -63,6 +73,14 @@ function ChatContent() {
   const handleDeleteChat = async (chatId?: string, deleteAll?: boolean) => {
     try {
       await dispatch(deleteChat({ chatId, deleteAll })).unwrap();
+      if (deleteAll) {
+        router.replace("/Chat");
+      } else if (chatId && chat?._id === chatId) {
+        router.replace("/Chat");
+      }
+      setTimeout(() => {
+        dispatch(fetchHistory());
+      }, 100);
     } catch (err) {
       console.error("Failed to delete chat:", err);
     }
@@ -84,10 +102,10 @@ const handleUpdateChat = async (title: string, chatId?: string) => {
   // ---------------- LOADING STATE ----------------
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen bg-background">
       <ChatSidebar currentChatTitle="New Chat" onDeleteChat={handleDeleteChat} onUpdate={handleUpdateChat} />
 
-      <div className="flex flex-col flex-1">
+      <div className="flex flex-col flex-1 min-w-0">
         <ChatHeader
           title="New Chat"
           onCreateChat={handleCreateChat}

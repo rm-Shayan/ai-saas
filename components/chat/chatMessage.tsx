@@ -94,16 +94,10 @@ export default function ChatMessages({ messages }: ChatMessagesProps) {
     );
 
     if (!hasRealMessage) {
-      mergedMessages.push({
-        _id: "default_ai_msg",
-        content:
-          "Hello! I am your AI assistant. Type a prompt below to start the conversation.",
-        type: "ai",
-        timestamp: new Date().toISOString(),
-      });
+      setMessagesForUI([]);
+    } else {
+      setMessagesForUI(mergedMessages);
     }
-
-    setMessagesForUI(mergedMessages);
   }, [messages, prompt, aiResponse]);
 
   // ---------------- Auto-scroll ----------------
@@ -111,22 +105,83 @@ export default function ChatMessages({ messages }: ChatMessagesProps) {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messagesForUI]);
+  }, [messagesForUI, promptLoading]);
+
+  const suggestedPrompts = [
+    "Analyze a startup for investment potential",
+    "Do a quick due diligence checklist",
+    "Find competitors for a product",
+    "Calculate TAM/SAM/SOM for a market",
+    "Identify key risks before investing",
+    "Compare two startups side by side",
+  ];
+
+  const handleSuggestedPrompt = (prompt: string) => {
+    // We'll trigger via parent? But ChatMessages is used in both pages
+    // For now, just focus on UI - parent handles sending
+    const event = new CustomEvent("suggestedPrompt", { detail: prompt });
+    window.dispatchEvent(event);
+  };
 
   return (
-    <ScrollArea className="flex-1 px-6 py-4">
-      <div ref={scrollRef} className="flex flex-col gap-4">
-        {messagesForUI.map((m) => {
-          return (
-            <MessageBubble
-              key={m._id}
-              text={m.content}
-              sender={m.type}
-              additionalInfo={m.additionalInfo}
-              timestamp={m.timestamp}
-            />
-          );
-        })}
+    <ScrollArea className="flex-1">
+      <div ref={scrollRef} className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 md:px-8">
+        {messagesForUI.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-[calc(100vh-280px)] text-center">
+            <div className="mb-8">
+              <h2 className="text-2xl md:text-3xl font-semibold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                InvestoCrafy
+              </h2>
+              <p className="mt-2 text-muted-foreground">
+                Your AI Investment Due Diligence Assistant
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-2xl">
+              {suggestedPrompts.map((prompt, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleSuggestedPrompt(prompt)}
+                  className="group p-3 rounded-xl border border-border bg-card hover:bg-accent hover:text-accent-foreground transition-all duration-200 text-left text-sm shadow-sm hover:shadow-md"
+                >
+                  <span className="text-card-foreground group-hover:text-accent-foreground">
+                    {prompt}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <p className="mt-6 text-xs text-muted-foreground">
+              Ask me anything about startups, markets, or investments
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4 md:gap-5">
+            {messagesForUI.map((m) => {
+              return (
+                <MessageBubble
+                  key={m._id}
+                  text={m.content}
+                  sender={m.type}
+                  additionalInfo={m.additionalInfo}
+                  timestamp={m.timestamp}
+                />
+              );
+            })}
+            {promptLoading && (
+              <div className="flex items-start gap-3">
+                <div className="bg-card border border-border rounded-2xl rounded-bl-md px-4 py-3 shadow-sm">
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex gap-1">
+                      <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                      <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                      <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"></span>
+                    </div>
+                    <span className="text-xs text-muted-foreground ml-2">AI is thinking...</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </ScrollArea>
   );

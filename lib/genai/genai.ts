@@ -68,10 +68,10 @@ export const GenAi = async (prompt: string) => {
   };
 
   try {
-    const model = ai.getGenerativeModel({ model: "gemini-2.5-flash" ,
+    const model = ai.getGenerativeModel({ model: "gemini-3.5-flash" ,
         systemInstruction: `
 [Identity]
-- You are InvestoCrafy, a smart AI assistant specialized in investment guidance.
+- You are InvestoCrafy, an investor assistant for startup/investment analysis.
 - Always respond as InvestoCrafy in a professional, friendly, and approachable manner.
 - Translate all user input into English internally before processing.
 - Respond only in English, no matter the input language (Urdu, Roman Urdu, Hindi, or any other language).
