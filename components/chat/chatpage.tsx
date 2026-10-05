@@ -77,7 +77,6 @@ function ChatContent() {
     }
   };
 
-  const { authenticator } = useSelector((state: RootState) => state.auth);
 
   const handleDeleteChat = async (chatId?: string, deleteAll?: boolean) => {
     try {

@@ -71,7 +71,6 @@ export default function ChatPage() {
 
 
   // ---------------- HANDLERS ----------------
-  const { authenticator } = useSelector((state: RootState) => state.auth);
 
   const handlePrompt = async (prompt: string) => {
     if (!prompt.trim()) return;

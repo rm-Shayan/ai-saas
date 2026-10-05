@@ -20,7 +20,7 @@ interface ChatMessagesProps {
 }
 
 export default function ChatMessages({ messages }: ChatMessagesProps) {
-  const {prompt, aiResponse } = useSelector(
+  const {prompt, aiResponse, loading: isThinking } = useSelector(
     (state: RootState) => state.prompt
   );
 
@@ -105,7 +105,7 @@ export default function ChatMessages({ messages }: ChatMessagesProps) {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messagesForUI, promptLoading]);
+  }, [messagesForUI, isThinking]);
 
   const suggestedPrompts = [
     "Analyze a startup for investment potential",
@@ -166,7 +166,7 @@ export default function ChatMessages({ messages }: ChatMessagesProps) {
                 />
               );
             })}
-            {promptLoading && (
+            {isThinking && (
               <div className="flex items-start gap-3">
                 <div className="bg-card border border-border rounded-2xl rounded-bl-md px-4 py-3 shadow-sm">
                   <div className="flex items-center gap-1.5">
