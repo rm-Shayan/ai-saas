@@ -61,7 +61,7 @@ const handlePending = (state: HistoryState) => {
 const handleRejected = (state: HistoryState, action: PayloadAction<any>) => {
   state.loading = false;
   state.error = action.payload;
-  if (state.error) toast.error(state.error);
+  if (state.error && !/access token missing|401|unauthorized/i.test(state.error)) toast.error(state.error);
 };
 
 export const historySlice = createSlice({

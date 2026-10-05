@@ -30,13 +30,14 @@ export default function ChatSidebar({ currentChatTitle, onDeleteChat, onUpdate }
   const { history, loading } = useSelector((state: RootState) => state.history);
   const { chat: promptChat } = useSelector((state: RootState) => state.prompt);
 
+  const { authenticator } = useSelector((state: RootState) => state.auth);
   const hasFetched = useRef(false);
   useEffect(() => {
-    if (!hasFetched.current) {
+    if (!hasFetched.current && authenticator?._id) {
       dispatch(fetchHistory());
       hasFetched.current = true;
     }
-  }, [dispatch]);
+  }, [dispatch, authenticator?._id]);
 
   useEffect(() => {
     if (!history) return;

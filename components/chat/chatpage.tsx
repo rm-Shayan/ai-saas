@@ -35,8 +35,15 @@ function ChatContent() {
   }, [chat, router]);
 
   // ---------------- HANDLERS ----------------
+  const { authenticator } = useSelector((state: RootState) => state.auth);
+
   const handlePrompt = async (prompt: string) => {
     if (!prompt.trim()) return;
+
+    if (!authenticator?._id) {
+      router.push("/login");
+      return;
+    }
 
     try {
       const result = await dispatch(sendPrompt({ prompt })).unwrap();
@@ -58,7 +65,7 @@ function ChatContent() {
     };
     window.addEventListener("suggestedPrompt", handleSuggested);
     return () => window.removeEventListener("suggestedPrompt", handleSuggested);
-  }, [chat]);
+  }, [chat, authenticator?._id]);
 
   const handleCreateChat = async () => {
     try {
@@ -70,6 +77,8 @@ function ChatContent() {
     }
   };
 
+  const { authenticator } = useSelector((state: RootState) => state.auth);
+
   const handleDeleteChat = async (chatId?: string, deleteAll?: boolean) => {
     try {
       await dispatch(deleteChat({ chatId, deleteAll })).unwrap();
@@ -79,7 +88,7 @@ function ChatContent() {
         router.replace("/Chat");
       }
       setTimeout(() => {
-        dispatch(fetchHistory());
+        if (authenticator?._id) dispatch(fetchHistory());
       }, 100);
     } catch (err) {
       console.error("Failed to delete chat:", err);

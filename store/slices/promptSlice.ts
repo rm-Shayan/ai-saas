@@ -169,7 +169,7 @@ const promptSlice = createSlice({
       .addCase(sendPrompt.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload ?? "Unknown error occurred";
-        toast.error(state.error);
+        if (!/access token missing|401|unauthorized/i.test(state.error || "")) toast.error(state.error);
       })
       .addCase(sendPrompt.fulfilled, (state, action) => {
         state.loading = false;

@@ -37,9 +37,10 @@ export default function ChatPage() {
 
   const fetchedChatsRef = useRef<Set<string>>(new Set());
 
+  const { authenticator } = useSelector((state: RootState) => state.auth);
   // ---------------- FETCH CURRENT CHAT ----------------
   useEffect(() => {
-    if (!id || fetchedChatsRef.current.has(id.toString())) return;
+    if (!id || !authenticator?._id || fetchedChatsRef.current.has(id.toString())) return;
 
     const fetchCurrentChat = async () => {
       try {
@@ -54,7 +55,7 @@ export default function ChatPage() {
     };
 
     fetchCurrentChat();
-  }, [dispatch, id, chats]);
+  }, [dispatch, id, chats, authenticator?._id]);
 
   // ---------------- CURRENT CHAT ----------------
   const chatsArr: IChat[] = useMemo(() => chats || [], [chats]);
@@ -70,8 +71,15 @@ export default function ChatPage() {
 
 
   // ---------------- HANDLERS ----------------
+  const { authenticator } = useSelector((state: RootState) => state.auth);
+
   const handlePrompt = async (prompt: string) => {
     if (!prompt.trim()) return;
+
+    if (!authenticator?._id) {
+      router.push("/login");
+      return;
+    }
 
     // Clear previous chat preview
     dispatch(clearPreview());
@@ -90,7 +98,7 @@ export default function ChatPage() {
     };
     window.addEventListener("suggestedPrompt", handleSuggested);
     return () => window.removeEventListener("suggestedPrompt", handleSuggested);
-  }, []);
+  }, [authenticator?._id]);
 
   const handleDeleteChat = async (chatId?: string, deleteAll?: boolean) => {
     try {
@@ -101,7 +109,7 @@ export default function ChatPage() {
         router.replace("/Chat");
       }
       setTimeout(() => {
-        dispatch(fetchHistory());
+        if (authenticator?._id) dispatch(fetchHistory());
       }, 100);
     } catch (err) {
       console.error("Failed to delete chat:", err);
@@ -126,7 +134,7 @@ export default function ChatPage() {
     }
   };
 
-  if (!id || chatLoading || !currentChat) return <Loading />;
+  if (!id || chatLoading || (authenticator?._id && !currentChat)) return <Loading />;
 
 
   // ---------------- LATEST COMPONENT FOR PREVIEW ----------------

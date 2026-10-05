@@ -157,7 +157,7 @@ export const createChat = createAsyncThunk<
         history: result.data.history 
       };
     } catch (error: any) {
-      toast.error(error.message || "Failed to create chat");
+      if (!/401|access token missing|unauthorized/i.test(error?.message || "")) toast.error(error.message || "Failed to create chat");
       return rejectWithValue(error.message || "Failed to create chat");
     }
   }
@@ -173,7 +173,7 @@ const handlePending = (state: ChatState) => {
 const handleRejected = (state: ChatState, action: any) => {
   state.loading = false;
   state.error = action.payload as string;
-  if (state.error) toast.error(state.error);
+  if (state.error && !/access token missing|401|unauthorized/i.test(state.error)) toast.error(state.error);
 };
 
 export const chatSlice = createSlice({
