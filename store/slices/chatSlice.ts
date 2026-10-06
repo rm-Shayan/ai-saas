@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import { toast } from "react-hot-toast";
 import { apiRequest } from "./authSlice"; // reuse your apiRequest
 import { BASE_API_URL } from "./authSlice";
+import { sendPrompt } from "./promptSlice";
 
 // -------------------- Types --------------------
 
@@ -87,7 +88,7 @@ export const fetchChat = createAsyncThunk<IChat[], { chatId?: string } | void>(
       const url = payload?.chatId
         ? `/api/chat?chatId=${payload.chatId}`
         : `/api/chat`;
-      const result = await apiRequest<IChat[] | IChat>(url, "GET");
+      const result = await apiRequest<IChat[] | IChat>(url, "GET", undefined, true);
 
       // Normalize chatId for each chat
       const normalized: IChat[] = Array.isArray(result.data)
@@ -115,7 +116,7 @@ export const deleteChat = createAsyncThunk<IChat, { chatId?: string; deleteAll?:
   "chat/deleteChat",
   async ({ chatId, deleteAll }, { rejectWithValue }) => {
     try {
-      const result = await apiRequest<IChat>("/api/chat/delete", "DELETE", { chatId, deleteAll });
+      const result = await apiRequest<IChat>("/api/chat/delete", "DELETE", { chatId, deleteAll }, true);
       toast.success("Chat deleted successfully");
       return { ...result.data, chatId: result.data.chatId || result.data._id };
     } catch (error: any) {
@@ -129,7 +130,7 @@ export const updateChatTitle = createAsyncThunk<IChat, { chatId?: string; title:
   "chat/updateChatTitle",
   async ({ chatId, title }, { rejectWithValue }) => {
     try {
-      const result = await apiRequest<IChat>("/api/chat/update", "PATCH", { chatId, title });
+      const result = await apiRequest<IChat>("/api/chat/update", "PATCH", { chatId, title }, true);
       toast.success("Chat title updated");
       return { ...result.data, chatId: result.data.chatId || result.data._id };
     } catch (error: any) {
@@ -146,10 +147,11 @@ export const createChat = createAsyncThunk<
   "chat/createChat",
   async (_, { rejectWithValue }) => {
     try {
+      // createChat
       const result = await apiRequest<{
         chat: IChat;
         history: any;
-      }>(`${BASE_API_URL}/chat/create`, "POST");
+      }>("/api/chat/create", "POST", undefined, true);
 
       toast.success("Chat created successfully");
       return { 
@@ -219,9 +221,66 @@ export const chatSlice = createSlice({
       );
     });
 
-    builder.addCase(createChat.fulfilled, (state, action: PayloadAction<{ chat: IChat; history: any }>) => {
+        builder.addCase(createChat.fulfilled, (state, action: PayloadAction<{ chat: IChat; history: any }>) => {
       state.loading = false;
       state.chats.push(action.payload.chat);
+    });
+
+    builder.addCase(sendPrompt.fulfilled, (state, action) => {
+      const data = action.payload.data;
+      if (!data) return;
+      const targetChatId = data.chat?._id || (data.chat as any)?.chatId;
+      if (!targetChatId) return;
+
+      const formattedMessage: IMessage = {
+        _id: data.message?._id || `msg_${Date.now()}`,
+        investorId: data.message?.investorId || "",
+        chatId: targetChatId,
+        prompt: {
+          _id: (data.prompt as any)?._id || `p_${Date.now()}`,
+          investorId: data.prompt?.investorId || "",
+          text: (action.meta.arg as any).prompt,
+          createdAt: data.prompt?.createdAt || new Date().toISOString(),
+          updatedAt: data.prompt?.updatedAt || new Date().toISOString(),
+        },
+        aiResponse: {
+          _id: data.aiResponse?._id || `ai_${Date.now()}`,
+          responseType: data.aiResponse?.responseType || "text",
+          text: data.aiResponse?.text || "",
+          component: (data.aiResponse?.component as any) || null,
+          chartValues: data.aiResponse?.chartValues || { labels: [], data: [] },
+          additionalInfo: data.aiResponse?.additionalInfo || "",
+          investorID: data.aiResponse?.investorID || "",
+          createdAt: data.aiResponse?.createdAt || new Date().toISOString(),
+          updatedAt: data.aiResponse?.updatedAt || new Date().toISOString(),
+        },
+        createdAt: data.message?.createdAt || new Date().toISOString(),
+        updatedAt: data.message?.updatedAt || new Date().toISOString(),
+      };
+
+      const existingChat = state.chats.find(
+        (c) => c._id === targetChatId || c.chatId === targetChatId
+      );
+
+      if (existingChat) {
+        if (!existingChat.messages) existingChat.messages = [];
+        if (!existingChat.messages.some((m) => m._id === formattedMessage._id)) {
+          existingChat.messages.push(formattedMessage);
+        }
+      } else if (data.chat) {
+        state.chats.push({
+          _id: targetChatId,
+          chatId: targetChatId,
+          title: data.chat.title || "New Chat",
+          messages: [formattedMessage],
+          createdAt: data.chat.createdAt || new Date().toISOString(),
+          updatedAt: data.chat.updatedAt || new Date().toISOString(),
+        });
+      }
+
+      if (data.aiResponse?.component) {
+        state.preview = (data.aiResponse.component as any) || null;
+      }
     });
   },
 });

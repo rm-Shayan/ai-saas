@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -7,7 +7,7 @@ import { AppDispatch, RootState } from "@/store/store";
 
 import { createChat, deleteChat } from "@/store/slices/chatSlice";
 import { sendPrompt } from "@/store/slices/promptSlice";
-import { fetchHistory } from "@/store/slices/historySlice";
+import { fetchHistory, clearHistory } from "@/store/slices/historySlice";
 
 import ChatSidebar from "@/components/chat/chatsidebar";
 import ChatHeader from "@/components/chat/chatHeader";
@@ -40,15 +40,9 @@ function ChatContent() {
   const handlePrompt = async (prompt: string) => {
     if (!prompt.trim()) return;
 
-    if (!authenticator?._id) {
-      router.push("/login");
-      return;
-    }
-
     try {
       const result = await dispatch(sendPrompt({ prompt })).unwrap();
 
-      // result.data.chat ya chat._id ke basis pe redirect
       const chatId = result.data?.chat?._id || chat?._id;
       if (chatId) {
         router.replace(`/Chat/${chatId}`);
@@ -65,7 +59,7 @@ function ChatContent() {
     };
     window.addEventListener("suggestedPrompt", handleSuggested);
     return () => window.removeEventListener("suggestedPrompt", handleSuggested);
-  }, [chat, authenticator?._id]);
+  }, [chat, authenticator?._id, (authenticator as any)?.id]);
 
   const handleCreateChat = async () => {
     try {
@@ -86,16 +80,18 @@ function ChatContent() {
       } else if (chatId && chat?._id === chatId) {
         router.replace("/Chat");
       }
-      setTimeout(() => {
-        if (authenticator?._id) dispatch(fetchHistory());
-      }, 100);
+      // Clear fetched flag so sidebar refetches fresh history
+      if (authenticator?._id || (authenticator as any)?.id) {
+        dispatch(clearHistory());
+        dispatch(fetchHistory());
+      }
     } catch (err) {
       console.error("Failed to delete chat:", err);
     }
   };
 
 const handleUpdateChat = async (title: string, chatId?: string) => {
-  if (!title.trim()) return; // Title required
+  if (!title.trim()) return;
 
   try {
     await dispatch(
@@ -106,8 +102,6 @@ const handleUpdateChat = async (title: string, chatId?: string) => {
   }
 };
 
-
-  // ---------------- LOADING STATE ----------------
 
   return (
     <div className="flex h-screen bg-background">

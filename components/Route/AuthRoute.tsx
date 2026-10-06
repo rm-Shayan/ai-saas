@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -16,22 +16,26 @@ const AuthRoute = ({ children }: AuthRouteProps) => {
 
   const { authenticator } = useSelector((state: RootState) => state.auth);
 
-  const fetchingRef = useRef(false); // prevent multiple getUser calls
-  const refreshingRef = useRef(false); // prevent multiple refreshToken calls
+  const fetchingRef = useRef(false); // prevent multiple getUser calls on re-render
+  const hasCheckedRef = useRef(false); // run only once on mount
 
   useEffect(() => {
+    // Already checked or already logged in
+    if (hasCheckedRef.current) return;
+    hasCheckedRef.current = true;
+
     const checkAuth = async () => {
       if (fetchingRef.current) return;
       fetchingRef.current = true;
 
-      // If already logged in → redirect
+      // If already logged in -> redirect immediately
       if (authenticator?._id) {
         router.replace("/Chat");
         return;
       }
 
       try {
-        // Attempt to get user
+        // Attempt to get user (silent - no toast on failure)
         await dispatch(getUser()).unwrap();
         router.replace("/Chat");
       } catch {
@@ -41,7 +45,7 @@ const AuthRoute = ({ children }: AuthRouteProps) => {
           await dispatch(getUser()).unwrap();
           router.replace("/Chat");
         } catch {
-          // All fails → stay on auth page
+          // All fails -> stay on auth page
           dispatch(logout());
         }
       } finally {
@@ -50,21 +54,19 @@ const AuthRoute = ({ children }: AuthRouteProps) => {
     };
 
     checkAuth();
-  }, [dispatch, authenticator?._id, router]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only on mount - not on every re-render
 
-  /* ---------------- Optional: silent token refresh while on auth page ---------------- */
+  /* ---------------- Silent token refresh interval while on auth page ---------------- */
   useEffect(() => {
     const interval = setInterval(async () => {
-      if (!authenticator?._id || refreshingRef.current) return;
+      if (!authenticator?._id) return;
 
-      refreshingRef.current = true;
       try {
         await dispatch(refreshToken()).unwrap();
       } catch {
         dispatch(logout());
         router.replace("/login");
-      } finally {
-        refreshingRef.current = false;
       }
     }, 14 * 60 * 1000); // refresh before expiry
 

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -17,7 +17,7 @@ import ChatMessages from "@/components/chat/chatMessage";
 import PromptInput from "@/components/chat/promptInput";
 import Loading from "@/app/loading";
 import { sendPrompt } from "@/store/slices/promptSlice";
-import { fetchHistory } from "@/store/slices/historySlice";
+import { fetchHistory, clearHistory } from "@/store/slices/historySlice";
 import { AppDispatch, RootState } from "@/store/store";
 import AiPage from "@/components/chat/Aipage";
 
@@ -40,7 +40,8 @@ export default function ChatPage() {
   const { authenticator } = useSelector((state: RootState) => state.auth);
   // ---------------- FETCH CURRENT CHAT ----------------
   useEffect(() => {
-    if (!id || !authenticator?._id || fetchedChatsRef.current.has(id.toString())) return;
+    const currentUserId = authenticator?._id || (authenticator as any)?.id;
+    if (!id || !currentUserId || fetchedChatsRef.current.has(id.toString())) return;
 
     const fetchCurrentChat = async () => {
       try {
@@ -55,7 +56,7 @@ export default function ChatPage() {
     };
 
     fetchCurrentChat();
-  }, [dispatch, id, chats, authenticator?._id]);
+  }, [dispatch, id, authenticator?._id, (authenticator as any)?.id]);
 
   // ---------------- CURRENT CHAT ----------------
   const chatsArr: IChat[] = useMemo(() => chats || [], [chats]);
@@ -107,9 +108,11 @@ export default function ChatPage() {
       } else if (chatId && id === chatId) {
         router.replace("/Chat");
       }
-      setTimeout(() => {
-        if (authenticator?._id) dispatch(fetchHistory());
-      }, 100);
+      // Clear fetched flag so sidebar refetches fresh history
+      if (authenticator?._id) {
+        dispatch(clearHistory());
+        dispatch(fetchHistory());
+      }
     } catch (err) {
       console.error("Failed to delete chat:", err);
     }
@@ -133,7 +136,7 @@ export default function ChatPage() {
     }
   };
 
-  if (!id || chatLoading || (authenticator?._id && !currentChat)) return <Loading />;
+  if (!id || (chatLoading && !currentChat)) return <Loading />;
 
 
   // ---------------- LATEST COMPONENT FOR PREVIEW ----------------

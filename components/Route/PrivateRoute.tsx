@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
-import { getUser, logout } from "@/store/slices/authSlice";
-import { RootState, AppDispatch } from "@/store/store";
+import { getUser, refreshToken, logout } from "@/store/slices/authSlice";
+import { AppDispatch } from "@/store/store";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
@@ -26,29 +26,21 @@ const PrivateRoute = ({ children }: PrivateRouteProps) => {
       checkingRef.current = true;
 
       try {
-        const res = await fetch("/api/auth/user", {
-          method: "GET",
-          credentials: "include",
-        });
-
-        if (res.ok) {
+        // Direct getUser: single API call, populates Redux auth state immediately
+        const user = await dispatch(getUser()).unwrap();
+        const userId = (user as any)?._id || (user as any)?.id;
+        if (userId) {
           setAuthChecked(true);
-          // populate redux auth state without triggering failing toasts
-          try {
-            await dispatch(getUser()).unwrap();
-          } catch {}
           return;
         }
 
-        // If user fetch failed, silently try to get a fresh token once
+        // Silent token refresh attempt if initial getUser returned empty
         try {
-          await fetch("/api/auth/refresh-token", { method: "GET", credentials: "include" });
-          const retry = await fetch("/api/auth/user", { method: "GET", credentials: "include" });
-          if (retry.ok) {
+          await dispatch(refreshToken()).unwrap();
+          const retryUser = await dispatch(getUser()).unwrap();
+          const retryId = (retryUser as any)?._id || (retryUser as any)?.id;
+          if (retryId) {
             setAuthChecked(true);
-            try {
-              await dispatch(getUser()).unwrap();
-            } catch {}
             return;
           }
         } catch {}
@@ -57,6 +49,17 @@ const PrivateRoute = ({ children }: PrivateRouteProps) => {
         dispatch(logout());
         router.replace("/login");
       } catch {
+        // Silent token refresh on 401 error
+        try {
+          await dispatch(refreshToken()).unwrap();
+          const retryUser = await dispatch(getUser()).unwrap();
+          const retryId = (retryUser as any)?._id || (retryUser as any)?.id;
+          if (retryId) {
+            setAuthChecked(true);
+            return;
+          }
+        } catch {}
+
         setRedirecting(true);
         dispatch(logout());
         router.replace("/login");
@@ -71,7 +74,7 @@ const PrivateRoute = ({ children }: PrivateRouteProps) => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-3 text-muted-foreground">
-          <Loader2 className="h-8 w-8 animate-spin" />
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
           {redirecting ? (
             <p className="text-sm">Redirecting to login...</p>
           ) : (

@@ -28,6 +28,11 @@ export const getUser = async (req: NextRequest) => {
         userObj = cachedUser; // fallback
       }
 
+      if (userObj) {
+        const id = (userObj._id || userObj.id)?.toString() || "";
+        userObj._id = id;
+        userObj.id = id;
+      }
       return new ApiResponse(200, userObj, "User fetched from Redis");
     }
 

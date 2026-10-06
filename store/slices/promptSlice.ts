@@ -6,6 +6,7 @@ import { apiRequest } from "./authSlice";
 
 export interface IPromptRequest {
   prompt: string;
+  chatId?: string;
 }
 
 export interface IPromptObject {
@@ -129,7 +130,9 @@ export const sendPrompt = createAsyncThunk<
       const response = await apiRequest<PromptResponseData>(
         "/api/prompt",
         "POST",
-        { prompt: payload.prompt },
+        { prompt: payload.prompt, chatId: payload.chatId },
+
+
         true
       );
       return response;

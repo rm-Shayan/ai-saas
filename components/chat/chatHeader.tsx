@@ -32,11 +32,9 @@ export default function ChatHeader({
   preview = false,
 }: ChatHeaderProps) {
   const dispatch = useDispatch();
-  const { authenticator, loading } = useSelector(
+  const { authenticator } = useSelector(
     (state: RootState) => state.auth
   );
-
-  if (loading) return <Loading />;
 
   const userName = authenticator?.name || authenticator?.email || "User";
   const avatarFallback = userName.charAt(0).toUpperCase();

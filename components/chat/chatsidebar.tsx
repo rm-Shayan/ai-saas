@@ -33,11 +33,12 @@ export default function ChatSidebar({ currentChatTitle, onDeleteChat, onUpdate }
   const { authenticator } = useSelector((state: RootState) => state.auth);
   const hasFetched = useRef(false);
   useEffect(() => {
-    if (!hasFetched.current && authenticator?._id) {
+    const authId = authenticator?._id || (authenticator as any)?.id;
+    if (!hasFetched.current && authId) {
       dispatch(fetchHistory());
       hasFetched.current = true;
     }
-  }, [dispatch, authenticator?._id]);
+  }, [dispatch, authenticator?._id, (authenticator as any)?.id]);
 
   useEffect(() => {
     if (!history) return;
@@ -227,8 +228,13 @@ export default function ChatSidebar({ currentChatTitle, onDeleteChat, onUpdate }
 
 function SidebarLoading() {
   return (
-    <div className="w-64 sm:w-56 md:w-72 lg:w-80 h-screen flex items-center justify-center bg-gray-100 border-r">
-      <Loading />
+    <div className="w-60 sm:w-64 md:w-72 lg:w-80 h-screen flex flex-col p-4 bg-muted/20 border-r border-border animate-pulse">
+      <div className="h-6 w-32 bg-muted rounded mb-6" />
+      <div className="space-y-3">
+        <div className="h-9 bg-muted/60 rounded-lg" />
+        <div className="h-9 bg-muted/60 rounded-lg" />
+        <div className="h-9 bg-muted/60 rounded-lg" />
+      </div>
     </div>
   );
 }
