@@ -4,51 +4,38 @@ import Investor from "@models/inevstor.model";
 import { NextRequest, NextResponse } from "next/server";
 import { redis } from "@/lib/db-config/db";
 
-
-
-// delete also user from redis cache and delete token cookies
 export const logoutUser = async (req: NextRequest) => {
   try {
-    // 1️⃣ Get userId from headers
     const userId = req.headers.get("x-temp-user-id");
-    if (!userId) throw new ApiError(401, "Unauthorized");
 
-    // Redis cache key
-    const redisKey = `user:${userId}`;
+    if (userId) {
+      // 1. Remove refresh token from DB (do NOT delete user account!)
+      await Investor.findByIdAndUpdate(userId, { $unset: { refreshToken: 1 } }).catch(() => {});
 
-    // 2️⃣ Remove user from database
-    const deletedUser = await Investor.findByIdAndDelete(userId);
-    if (!deletedUser) {
-      throw new ApiError(404, "User not found");
+      // 2. Clear Redis cache for user
+      await redis.del(`user:${userId}`).catch(() => {});
     }
 
-    // 3️⃣ Delete Redis cache
-    await redis.del(redisKey);
-
-    // 4️⃣ Remove cookies
-    const deleteAccessCookie = [
-      `accessToken=`,
-      "HttpOnly",
-      "Path=/",
-      "Max-Age=0",
-      "SameSite=Lax",
-    ].join("; ");
-
-    const deleteRefreshCookie = [
-      `refreshToken=`,
-      "HttpOnly",
-      "Path=/",
-      "Max-Age=0",
-      "SameSite=Lax",
-    ].join("; ");
-
-    // 5️⃣ Create response
+    // 3. Clear auth cookies
     const res = NextResponse.json(
-      new ApiResponse(200, null, "User deleted successfully")
+      new ApiResponse(200, null, "Logged out successfully")
     );
 
-    res.headers.append("Set-Cookie", deleteAccessCookie);
-    res.headers.append("Set-Cookie", deleteRefreshCookie);
+    res.cookies.set("accessToken", "", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      path: "/",
+      maxAge: 0,
+    });
+
+    res.cookies.set("refreshToken", "", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      path: "/",
+      maxAge: 0,
+    });
 
     return res;
   } catch (err: any) {

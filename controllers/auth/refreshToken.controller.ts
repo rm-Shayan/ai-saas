@@ -11,7 +11,6 @@ export const refreshToken = async (req: NextRequest) => {
     // 1️⃣ Get refresh token from cookies
     const refToken = req.cookies.get("refreshToken")?.value;
 
-    console.log("refreshToken",refToken)
     if (!refToken) throw new ApiError(401, "Refresh token missing");
 
     // 2️⃣ Verify refresh token
@@ -20,7 +19,6 @@ export const refreshToken = async (req: NextRequest) => {
       process.env.REFRESH_TOKEN_SECRET!
     );
 
-    console.log("decode again,",decoded.id)
     if (!decoded || (!decoded._id && !decoded.id)) {
       throw new ApiError(401, "Invalid refresh token");
     }
@@ -33,31 +31,28 @@ export const refreshToken = async (req: NextRequest) => {
     if (!user) throw new ApiError(404, "User not found");
 
     // 5️⃣ Generate new tokens
-    const { accessToken, refreshToken } = await generateTokens(user);
+    const { accessToken, refreshToken: newRefreshToken } = await generateTokens(user);
 
-    // 6️⃣ Prepare cookies
-    const accessCookieOptions = [
-      `accessToken=${accessToken}`,
-      "HttpOnly",
-      "Path=/",
-      "SameSite=Lax",
-      "Max-Age=3600",
-    ].join("; ");
-
-    const refreshCookieOptions = [
-      `refreshToken=${refreshToken}`,
-      "HttpOnly",
-      "Path=/",
-      "SameSite=Lax",
-      "Max-Age=604800",
-    ].join("; ");
-
+    // 6️⃣ Prepare response and set cookies properly using res.cookies
     const res = NextResponse.json(
       new ApiResponse(200, { accessToken }, "Tokens refreshed successfully")
     );
 
-    res.headers.append("Set-Cookie", accessCookieOptions);
-    res.headers.append("Set-Cookie", refreshCookieOptions);
+    res.cookies.set("accessToken", accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      path: "/",
+      maxAge: 15 * 60,
+    });
+
+    res.cookies.set("refreshToken", newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      path: "/",
+      maxAge: 7 * 24 * 60 * 60,
+    });
 
     return res;
   } catch (err: any) {
