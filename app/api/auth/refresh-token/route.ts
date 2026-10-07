@@ -19,11 +19,12 @@ export const GET = async (req: NextRequest) => {
     // 3️⃣ Rate limiting
     const options = {
       keyPrefix: "refresh-token",
-      limit: 6,
+      limit: 30,
       ttl: 300, // 1 minute
     };
 
-    const { allowed, reset } = await rateLimiter(ip, options);
+    const rateKey = req.headers.get("x-temp-user-id")?.trim() || ip;
+    const { allowed, reset } = await rateLimiter(rateKey, options);
 
     if (!allowed) {
       return NextResponse.json(

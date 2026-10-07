@@ -23,7 +23,7 @@ export default function Hero() {
 
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
           <Button size="lg" className="px-8 py-6 text-base shadow-sm hover:shadow-md transition-shadow">
-            <Link href={`${process.env.NEXT_PUBLIC_PROD_URL}/Chat` || "http://localhost:3000/Chat"}>
+            <Link href="/Chat">
               Start Your Investment Journey
             </Link>
           </Button>

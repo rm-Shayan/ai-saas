@@ -7,7 +7,7 @@ import { AppDispatch, RootState } from "@/store/store";
 
 import { createChat, deleteChat } from "@/store/slices/chatSlice";
 import { sendPrompt } from "@/store/slices/promptSlice";
-import { fetchHistory, clearHistory } from "@/store/slices/historySlice";
+import { fetchHistory, clearHistory, addChat } from "@/store/slices/historySlice";
 
 import ChatSidebar from "@/components/chat/chatsidebar";
 import ChatHeader from "@/components/chat/chatHeader";
@@ -45,10 +45,14 @@ function ChatContent() {
 
       const chatId = result.data?.chat?._id || chat?._id;
       if (chatId) {
+        dispatch(addChat(chatId));
         router.replace(`/Chat/${chatId}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to send prompt:", err);
+      if (/401|unauthorized|access token missing/i.test(String(err?.message || err))) {
+        router.replace("/login");
+      }
     }
   };
 
@@ -65,7 +69,10 @@ function ChatContent() {
     try {
       const newChat = await dispatch(createChat()).unwrap();
       const chatId = newChat?.chat?._id;
-      if (chatId) router.replace(`/Chat/${chatId}`);
+      if (chatId) {
+        dispatch(addChat(chatId));
+        router.replace(`/Chat/${chatId}`);
+      }
     } catch (err) {
       console.error("Failed to create chat:", err);
     }

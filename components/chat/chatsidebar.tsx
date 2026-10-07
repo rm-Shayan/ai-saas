@@ -49,7 +49,7 @@ export default function ChatSidebar({ currentChatTitle, onDeleteChat, onUpdate }
     setLocalChats(chats);
   }, [history, promptChat]);
 
-  if (loading || !history) return <SidebarLoading />;
+  if (loading && !history) return <SidebarLoading />;
 
   const handleChatClick = (chatId: string) => {
     router.push(`/Chat/${chatId}`);

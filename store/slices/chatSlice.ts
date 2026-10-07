@@ -112,13 +112,14 @@ export const fetchChat = createAsyncThunk<IChat[], { chatId?: string } | void>(
 
 
 // Delete chat
-export const deleteChat = createAsyncThunk<IChat, { chatId?: string; deleteAll?: boolean|string }>(
+export const deleteChat = createAsyncThunk<{ chatId?: string; deleteAll?: boolean }, { chatId?: string; deleteAll?: boolean|string }>(
   "chat/deleteChat",
   async ({ chatId, deleteAll }, { rejectWithValue }) => {
     try {
-      const result = await apiRequest<IChat>("/api/chat/delete", "DELETE", { chatId, deleteAll }, true);
+      await apiRequest<any>("/api/chat/delete", "DELETE", { chatId, deleteAll }, true);
       toast.success("Chat deleted successfully");
-      return { ...result.data, chatId: result.data.chatId || result.data._id };
+      // API may return data: null — rely on the request args, not the payload
+      return { chatId, deleteAll: deleteAll === true || deleteAll === "true" };
     } catch (error: any) {
       return rejectWithValue(error.message || "Failed to delete chat");
     }
@@ -209,9 +210,16 @@ export const chatSlice = createSlice({
   state.preview = lastMessage?.aiResponse?.component || null;
 });
 
-    builder.addCase(deleteChat.fulfilled, (state, action: PayloadAction<IChat>) => {
+    builder.addCase(deleteChat.fulfilled, (state, action: PayloadAction<{ chatId?: string; deleteAll?: boolean }>) => {
       state.loading = false;
-      state.chats = state.chats.filter((chat) => chat.chatId !== action.payload.chatId);
+      if (action.payload.deleteAll) {
+        state.chats = [];
+        state.preview = null;
+        return;
+      }
+      state.chats = state.chats.filter(
+        (chat) => chat.chatId !== action.payload.chatId && chat._id !== action.payload.chatId
+      );
     });
 
     builder.addCase(updateChatTitle.fulfilled, (state, action: PayloadAction<IChat>) => {

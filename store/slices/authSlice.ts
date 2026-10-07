@@ -2,7 +2,7 @@
 import { toast } from "react-hot-toast";
 
 // --- Configuration ---
- export const BASE_API_URL = process.env.NEXT_PUBLIC_PROD_URL || "";
+export const BASE_API_URL = "";
 
 
 // -------------------- Types --------------------
@@ -88,8 +88,6 @@ export const apiRequest = async <T, D = any>(
     throw new Error(`Invalid JSON response from ${endpoint}`);
   }
 
-  console.log("result in api", result);
-
   if (!res.ok) {
     throw new Error(result?.message || `Request to ${endpoint} failed with status ${res.status}`);
   }
@@ -153,12 +151,12 @@ export const refreshToken = createAsyncThunk<IInvestorFields, void>(
 
 // --- OTP & VERIFICATION THUNKS ---
 
-export const verifyOtp = createAsyncThunk<IInvestorFields, OtpData>(
+export const verifyOtp = createAsyncThunk<{ email: string; verified: boolean }, OtpData>(
   "auth/verifyOtp",
   async (data, { rejectWithValue }) => {
     try {
-      const result = await apiRequest<IInvestorFields>("/api/auth/verify-otp", "POST", data, true);
-      return result.data; // unwrap
+      const result = await apiRequest<{ email: string; verified: boolean }>("/api/auth/verify-otp", "POST", data, true);
+      return result.data;
     } catch (error: any) {
       return rejectWithValue(error.message || "OTP verification failed");
     }
@@ -289,7 +287,7 @@ export const logoutUser = createAsyncThunk<
   async (_, { rejectWithValue }) => {
     try {
       const result = await apiRequest<ThunkMessageResult>(
-        "/api/auth/logout",
+        "/api/auth/user/logout",
         "POST",
         undefined,
         true
@@ -337,7 +335,6 @@ export const authSlice = createSlice({
       state.authenticator = null;
       state.isVerified = false;
       state.error = null;
-      toast.success("Logged out successfully");
     },
   },
   extraReducers: (builder) => {
@@ -371,13 +368,11 @@ export const authSlice = createSlice({
       toast.success("Login successful");
     });
 
-    builder.addCase(refreshToken.fulfilled, (state, action: PayloadAction<IInvestorFields>) => {
+    builder.addCase(refreshToken.fulfilled, (state) => {
       state.loading = false;
-      const user = action.payload;
-      const id = (user as any)?._id || (user as any)?.id || "";
-      state.authenticator = user ? { ...user, _id: id, id: id } : null;
-      state.isVerified = action.payload.verified || false;
-      // Session refresh is silent
+      // Refresh-token response only carries new tokens, NOT the user.
+      // Do NOT overwrite `authenticator` here — that wiped the logged-in user
+      // and caused the UI to think the session was logged out.
     });
     
     builder.addCase(getUser.fulfilled, (state, action: PayloadAction<IInvestorFields>) => {
@@ -405,9 +400,10 @@ export const authSlice = createSlice({
       builder.addCase(thunk.rejected, handleRejected);
     });
 
-    builder.addCase(verifyOtp.fulfilled, (state, action: PayloadAction<IInvestorFields>) => {
+    builder.addCase(verifyOtp.fulfilled, (state, action: PayloadAction<{ verified: boolean }>) => {
       state.loading = false;
-      state.authenticator = action.payload;
+      // verify-otp returns { email, verified } — NOT a logged-in user.
+      // Do not stuff it into `authenticator` (it has no _id and breaks auth checks).
       state.isVerified = true;
       toast.success("OTP verified successfully");
     });

@@ -13,7 +13,8 @@ import { PlusCircle, Trash, Settings, LogOut, Eye } from "lucide-react";
 import { RootState } from "@/store/store";
 import { useSelector, useDispatch } from "react-redux";
 import Loading from "@/app/loading";
-import { logout } from "@/store/slices/authSlice";
+import { logout, logoutUser } from "@/store/slices/authSlice";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 interface ChatHeaderProps {
@@ -32,6 +33,7 @@ export default function ChatHeader({
   preview = false,
 }: ChatHeaderProps) {
   const dispatch = useDispatch();
+  const router = useRouter();
   const { authenticator } = useSelector(
     (state: RootState) => state.auth
   );
@@ -45,7 +47,7 @@ export default function ChatHeader({
       <div className="flex items-center gap-2 min-w-0 flex-1">
         <h1 className="text-sm sm:text-lg md:text-xl lg:text-2xl font-semibold truncate">
           <Link
-            href={process.env.NEXT_PUBLIC_PROD_URL || "http://localhost:3000/"}
+            href="/"
             className="bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent hover:opacity-80 transition-opacity"
           >
             InvestoCrafy
@@ -124,14 +126,18 @@ export default function ChatHeader({
           <DropdownMenuContent align="end" className="w-44">
             <DropdownMenuItem className="gap-2">
               <Settings className="h-4 w-4" />
-         <Link href={`${process.env.NEXT_PUBLIC_PROD_URL}/settings` || "http://localhost:3000/settings"}> Settings</Link>
+         <Link href="/settings"> Settings</Link>
             </DropdownMenuItem>
 
             <DropdownMenuSeparator />
 
             <DropdownMenuItem
               className="gap-2 text-red-600 focus:text-red-600"
-              onClick={() => dispatch(logout())}
+               onClick={async () => {
+                 try { await dispatch(logoutUser() as any); } catch {}
+                 dispatch(logout());
+                 router.replace("/login");
+               }}
             >
               <LogOut className="h-4 w-4" />
               Logout

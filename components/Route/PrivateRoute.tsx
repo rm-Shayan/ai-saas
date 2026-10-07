@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
 import { getUser, refreshToken, logout } from "@/store/slices/authSlice";
-import { AppDispatch } from "@/store/store";
+import { AppDispatch, RootState } from "@/store/store";
+import { useSelector } from "react-redux";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
@@ -14,6 +15,7 @@ interface PrivateRouteProps {
 const PrivateRoute = ({ children }: PrivateRouteProps) => {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
+  const existingUser = useSelector((state: RootState) => state.auth.authenticator);
 
   const [authChecked, setAuthChecked] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
@@ -21,6 +23,13 @@ const PrivateRoute = ({ children }: PrivateRouteProps) => {
 
   /* ---------------- Initial Auth Check ---------------- */
   useEffect(() => {
+    // Already authenticated (e.g. AuthRoute resolved it on the login page)
+    // — skip the redundant getUser round-trip.
+    if (existingUser?._id) {
+      setAuthChecked(true);
+      return;
+    }
+
     const initAuth = async () => {
       if (checkingRef.current) return;
       checkingRef.current = true;
@@ -67,7 +76,22 @@ const PrivateRoute = ({ children }: PrivateRouteProps) => {
     };
 
     initAuth();
-  }, [dispatch, router]);
+  }, [dispatch, router, existingUser?._id]);
+
+  /* ---------------- Keep access token fresh while on private pages ---------------- */
+  useEffect(() => {
+    if (!authChecked) return;
+
+    const interval = setInterval(async () => {
+      try {
+        await dispatch(refreshToken()).unwrap();
+      } catch {
+        // If refresh fails the next API call will 401 and kick to /login
+      }
+    }, 14 * 60 * 1000); // access token lives 15 min
+
+    return () => clearInterval(interval);
+  }, [authChecked, dispatch]);
 
   /* ---------------- Fallback: do not render children until auth is confirmed ---------------- */
   if (!authChecked) {

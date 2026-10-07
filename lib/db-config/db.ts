@@ -2,55 +2,50 @@ import mongoose from "mongoose";
 import { Redis } from "@upstash/redis";
 
 // ------------------------------
-// 🔹 Validate ENV variables
+// Lazy env validation + lazy init.
+// Nothing connects or throws at import time — this keeps
+// `next build` page-data collection working without env,
+// while the first real request still fails fast if envs are missing.
 // ------------------------------
-if (!process.env.MONGODB_URI) throw new Error("❌ Missing MONGODB_URI in .env.local");
-if (!process.env.UPSTASH_REDIS_REST_URL) throw new Error("❌ Missing UPSTASH_REDIS_REST_URL");
-if (!process.env.UPSTASH_REDIS_REST_TOKEN) throw new Error("❌ Missing UPSTASH_REDIS_REST_TOKEN");
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`❌ Missing ${name} in environment`);
+  return value;
+}
 
-// ------------------------------
-// 🔹 Mongoose Global Connection
-// ------------------------------
-let mongoConnection: Promise<typeof mongoose>;
+const initMongoose = () => mongoose.connect(requireEnv("MONGODB_URI"));
 
-const initMongoose = async () => {
-  return mongoose.connect(process.env.MONGODB_URI!, {
-    // future options can be added here
-  });
-};
-
-if (process.env.NODE_ENV === "development") {
-  // Use global cache to prevent multiple connections during hot reload
+function getMongo(): Promise<typeof mongoose> {
   if (!global._mongooseConnection) {
     global._mongooseConnection = initMongoose();
   }
-  mongoConnection = global._mongooseConnection;
-} else {
-  mongoConnection = initMongoose();
+  return global._mongooseConnection;
 }
 
-// ------------------------------
-// 🔹 Upstash Redis Client
-// ------------------------------
-let redisClient: Redis;
+// Awaitable stand-in: starts the connection on first `await db`
+export const db: Promise<typeof mongoose> = {
+  then: ((onF?: any, onR?: any) => getMongo().then(onF, onR)) as any,
+  catch: ((onR?: any) => getMongo().catch(onR)) as any,
+  finally: ((onF?: any) => getMongo().finally(onF)) as any,
+  [Symbol.toStringTag]: "Promise",
+} as Promise<typeof mongoose>;
 
-const initRedis = () =>
-  new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL!,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-  });
+let redisClient: Redis | null = null;
 
-if (process.env.NODE_ENV === "development") {
-  if (!global._redisClient) {
-    global._redisClient = initRedis();
+function getRedis(): Redis {
+  if (!redisClient) {
+    redisClient = new Redis({
+      url: requireEnv("UPSTASH_REDIS_REST_URL"),
+      token: requireEnv("UPSTASH_REDIS_REST_TOKEN"),
+    });
   }
-  redisClient = global._redisClient;
-} else {
-  redisClient = initRedis();
+  return redisClient;
 }
 
-// ------------------------------
-// 📤 Exports
-// ------------------------------
-export const db = mongoConnection; // await db to ensure mongoose connected
-export const redis = redisClient;
+export const redis = new Proxy({} as Redis, {
+  get: (_, prop) => {
+    const client: any = getRedis();
+    const value = client[prop];
+    return typeof value === "function" ? value.bind(client) : value;
+  },
+});

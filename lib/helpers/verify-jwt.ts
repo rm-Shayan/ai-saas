@@ -28,7 +28,6 @@ export async function verifyToken<T = IInvestorDocument>(
       }
 
       // If verification succeeds, resolve the promise with the decoded payload
-      console.log("Decoded JWT Payload:", decoded); // Now you log the correct variable!
       resolve(decoded as T);
     });
   });

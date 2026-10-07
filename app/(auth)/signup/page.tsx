@@ -25,7 +25,7 @@ export default function SignupPage() {
   useEffect(() => {
     // Redirect if user is already logged in
     if (authenticator?._id) {
-      router.push("/dashboard"); // redirect logged-in users
+      router.push("/Chat"); // redirect logged-in users
     }
   }, [authenticator, router]);
 

@@ -23,7 +23,8 @@ export const PUT = async (req: NextRequest) => {
       ttl: 60 * 60 * 12, // 12 hours
     };
 
-    const { allowed, remaining, reset } = await rateLimiter(ip, options);
+    const rateKey = req.headers.get("x-temp-user-id")?.trim() || ip;
+    const { allowed, remaining, reset } = await rateLimiter(rateKey, options);
 
     if (!allowed) {
       return NextResponse.json(

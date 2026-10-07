@@ -19,11 +19,12 @@ export const POST = async (req: NextRequest) => {
     // 3️⃣ Rate limiter config: max 5 requests per minute
     const options = {
       keyPrefix: "get-Chat",
-      limit: 4,
+      limit: 30,
       ttl: 60, // 1 minute in seconds
     };
 
-    const { allowed, remaining, reset } = await rateLimiter(ip, options);
+    const rateKey = req.headers.get("x-temp-user-id")?.trim() || ip;
+    const { allowed, remaining, reset } = await rateLimiter(rateKey, options);
 
     if (!allowed) {
       return new Response(

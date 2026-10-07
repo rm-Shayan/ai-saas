@@ -89,18 +89,18 @@ export default function SettingsPage() {
       {/* HEADER */}
      <header className="flex justify-between items-center mb-8">
   {/* Logo / Title */}
- <Link href={process.env.NEXT_PUBLIC_PROD_URL || "http://localhost:3000/"}>
+ <Link href="/">
       <h1 className="text-3xl font-bold text-blue-800">Investocrafy</h1>
     </Link>
   {/* Buttons */}
   <div className="flex gap-4">
     {/* Home button */}
-    <Link href={process.env.NEXT_PUBLIC_PROD_URL || "http://localhost:3000/"}>
+    <Link href="/">
       <Button variant="outline">Home</Button>
     </Link>
 
     {/* Chat button */}
-    <Link href={`${process.env.NEXT_PUBLIC_PROD_URL}/Chat` || "http://localhost:3000/Chat"}>
+    <Link href="/Chat">
       <Button variant="outline">Chat</Button>
     </Link>
   </div>

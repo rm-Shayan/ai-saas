@@ -26,7 +26,7 @@ export default function ForgotPasswordPage() {
   // Redirect if already logged in
   useEffect(() => {
     if (authenticator?._id) {
-      router.push("/dashboard");
+      router.push("/Chat");
     }
   }, [authenticator, router]);
 

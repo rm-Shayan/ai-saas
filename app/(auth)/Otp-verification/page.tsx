@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,14 @@ import type { RootState, AppDispatch } from "@/store/store";
 import { verifyOtp, resetOtp } from "@/store/slices/authSlice";
 
 export default function OtpVerificationPage() {
+  return (
+    <Suspense fallback={null}>
+      <OtpVerificationContent />
+    </Suspense>
+  );
+}
+
+function OtpVerificationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -28,7 +36,7 @@ export default function OtpVerificationPage() {
   // If user already logged in → redirect
   useEffect(() => {
     if (authenticator?._id) {
-      router.push("/dashboard");
+      router.push("/Chat");
     }
   }, [authenticator, router]);
 

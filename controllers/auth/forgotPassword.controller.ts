@@ -29,7 +29,7 @@ export const forgotPassword = async (req: NextRequest) => {
   });
 
   // Build frontend reset URL
-  const FRONTEND_URL = process.env.PROD_URL?.trim();
+  const FRONTEND_URL = (process.env.PROD_URL || process.env.NEXT_PUBLIC_PROD_URL || "http://localhost:3000").trim().replace(/\/$/, "");
 
 const resetUrl = `${FRONTEND_URL}/reset-password?token=${resetToken}`;
 

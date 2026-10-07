@@ -30,7 +30,7 @@ export default function Navbar() {
     <header className="w-full py-3.5 border-b border-border backdrop-blur supports-[backdrop-filter]:bg-background/80 bg-background/80 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex justify-between items-center">
         {/* Logo */}
-      <Link href={process.env.NEXT_PUBLIC_PROD_URL || "http://localhost:3000/"}>
+      <Link href="/">
         <h1 className="text-xl md:text-2xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">InvestoCrafy</h1>
       </Link>
 
@@ -43,7 +43,7 @@ export default function Navbar() {
 
         {/* Desktop CTA */}
         <Button size="sm" className="hidden md:block text-sm">
-          <Link href={`${process.env.NEXT_PUBLIC_PROD_URL}/Chat` || "http://localhost:3000/Chat"}>Get Started</Link>
+          <Link href="/Chat">Get Started</Link>
         </Button>
 
         {/* Mobile Toggle Button */}

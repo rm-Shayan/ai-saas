@@ -70,7 +70,17 @@ export const historySlice = createSlice({
   reducers: {
     clearHistory: (state) => {
       state.history = null;
-      state.fetched = false; // 🔥 allow refetch
+      state.fetched = false; // � allow refetch
+    },
+    addChat: (state, action: PayloadAction<string>) => {
+      if (!state.history) {
+        state.history = { _id: "", chats: [action.payload] };
+        state.fetched = true;
+        return;
+      }
+      if (!state.history.chats.includes(action.payload)) {
+        state.history.chats.unshift(action.payload);
+      }
     },
   },
   extraReducers: (builder) => {
@@ -88,5 +98,5 @@ export const historySlice = createSlice({
   },
 });
 
-export const { clearHistory } = historySlice.actions;
+export const { clearHistory, addChat } = historySlice.actions;
 export default historySlice.reducer;

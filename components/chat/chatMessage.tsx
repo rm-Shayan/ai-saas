@@ -17,12 +17,17 @@ interface IMessageForUI {
 
 interface ChatMessagesProps {
   messages: any[]; // raw messages fetched from chat
+  activeChatId?: string; // only show redux prompt/aiResponse if it belongs to this chat
 }
 
-export default function ChatMessages({ messages }: ChatMessagesProps) {
-  const {prompt, aiResponse, loading: isThinking } = useSelector(
+export default function ChatMessages({ messages, activeChatId }: ChatMessagesProps) {
+  const {prompt, aiResponse, loading: isThinking, chat: promptChat } = useSelector(
     (state: RootState) => state.prompt
   );
+
+  // Latest prompt/response from redux is relevant only for the chat that produced it
+  const promptBelongsToActiveChat =
+    !activeChatId || !promptChat?._id || promptChat._id === activeChatId;
 
   const [messagesForUI, setMessagesForUI] = useState<IMessageForUI[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -60,7 +65,7 @@ export default function ChatMessages({ messages }: ChatMessagesProps) {
     }
 
     // ---------------- Redux latest prompt ----------------
-    if (prompt?.text.trim()) {
+    if (promptBelongsToActiveChat && prompt?.text.trim()) {
       const id = prompt._id || `prompt_${Date.now()}`;
       if (!existingIds.has(id)) {
         mergedMessages.push({
@@ -74,7 +79,7 @@ export default function ChatMessages({ messages }: ChatMessagesProps) {
     }
 
     // ---------------- Redux latest AI response ----------------
-    if (aiResponse?.text?.trim()) {
+    if (promptBelongsToActiveChat && aiResponse?.text?.trim()) {
       const id = aiResponse._id || `ai_${Date.now()}`;
       if (!existingIds.has(id)) {
         mergedMessages.push({
@@ -98,7 +103,7 @@ export default function ChatMessages({ messages }: ChatMessagesProps) {
     } else {
       setMessagesForUI(mergedMessages);
     }
-  }, [messages, prompt, aiResponse]);
+  }, [messages, prompt, aiResponse, promptBelongsToActiveChat]);
 
   // ---------------- Auto-scroll ----------------
   useEffect(() => {

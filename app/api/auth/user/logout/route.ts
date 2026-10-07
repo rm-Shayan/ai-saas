@@ -17,11 +17,12 @@ export const POST = async (req: NextRequest) => {
     // Rate limiter config
     const options = {
       keyPrefix: "getUser",
-      limit: 5,    // max 5 requests
+      limit: 20,    // max 5 requests
       ttl: 600,    // 5 minutes
     };
 
-    const { allowed, remaining, reset } = await rateLimiter(ip, options);
+    const rateKey = req.headers.get("x-temp-user-id")?.trim() || ip;
+    const { allowed, remaining, reset } = await rateLimiter(rateKey, options);
 
     if (!allowed) {
       return NextResponse.json(

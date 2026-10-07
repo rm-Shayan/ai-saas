@@ -17,7 +17,8 @@ import ChatMessages from "@/components/chat/chatMessage";
 import PromptInput from "@/components/chat/promptInput";
 import Loading from "@/app/loading";
 import { sendPrompt } from "@/store/slices/promptSlice";
-import { fetchHistory, clearHistory } from "@/store/slices/historySlice";
+import { fetchHistory, clearHistory, addChat } from "@/store/slices/historySlice";
+import { getUser, refreshToken } from "@/store/slices/authSlice";
 import { AppDispatch, RootState } from "@/store/store";
 import AiPage from "@/components/chat/Aipage";
 
@@ -32,8 +33,8 @@ export default function ChatPage() {
  
   const { preview:promptPreview,aiResponse:promptAiResponse} = useSelector((state: RootState) => state.prompt);
 
-  // Show preview if chat slice or prompt slice has a component
-  const [showPreview, setShowPreview] = useState<boolean>(!!chatPreview || !!promptPreview);
+  // Preview opens only on explicit user toggle — do not auto-open on chat load
+  const [showPreview, setShowPreview] = useState<boolean>(false);
 
   const fetchedChatsRef = useRef<Set<string>>(new Set());
 
@@ -77,15 +78,35 @@ export default function ChatPage() {
     if (!prompt.trim()) return;
 
     if (!authenticator?._id) {
-      router.push("/login");
-      return;
+      // Session may still be resolving — verify once before bouncing to login
+      try {
+        await dispatch(getUser()).unwrap();
+      } catch {
+        try {
+          await dispatch(refreshToken()).unwrap();
+          await dispatch(getUser()).unwrap();
+        } catch {
+          router.replace("/login");
+          return;
+        }
+      }
     }
 
     // Clear previous chat preview
     dispatch(clearPreview());
 
-    // Send new prompt
-    await dispatch(sendPrompt({ prompt }));
+    // Send new prompt (attach to the currently open chat)
+    try {
+      await dispatch(
+        sendPrompt({ prompt, chatId: typeof id === "string" ? id : undefined })
+      ).unwrap();
+    } catch (err: any) {
+      if (/401|unauthorized|access token missing/i.test(String(err))) {
+        router.replace("/login");
+        return;
+      }
+      return;
+    }
 
     // Show prompt preview
     setShowPreview(true);
@@ -121,6 +142,7 @@ export default function ChatPage() {
   const handleCreateChat = async () => {
     try {
       const newChat = await dispatch(createChat()).unwrap();
+      dispatch(addChat(newChat.chat._id));
       router.replace(`/Chat/${newChat.chat._id}`);
     } catch (err) {
       console.error("Failed to create chat:", err);
@@ -173,7 +195,7 @@ const latestChartValues = latestAiResponse?.chartValues || {};
   <AiPage component={latestComponent} chartValues={latestChartValues} />
 )}
 
-        <ChatMessages messages={currentChatMessages} />
+        <ChatMessages messages={currentChatMessages} activeChatId={typeof id === "string" ? id : undefined} />
         <PromptInput onSend={handlePrompt} />
       </div>
     </div>
